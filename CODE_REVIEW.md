@@ -431,17 +431,30 @@ While current tests are comprehensive, consider adding tests for these scenarios
 
 ### High Priority (Do Before Launch)
 
-1. **Ensure Default PDF Template Exists**
-   - Create seeder or migration to guarantee default template
-   - Add better error message in `PdfTemplate::default()`
+1. **✅ COMPLETED - Ensure Default PDF Template Exists**
+   - ✅ Create seeder or migration to guarantee default template
+   - ✅ Add better error message in `PdfTemplate::default()`
+   - **Completed:** 2025-01-08
+   - **Changes:**
+     - Updated `PdfTemplate::default()` with descriptive error message
+     - Modified `DatabaseSeeder` to always call `PdfTemplateSeeder`
+     - Made `PdfTemplateSeeder` idempotent with `updateOrCreate()`
    - **Effort:** 2 hours
-   - **Files:** `database/seeders/PdfTemplateSeeder.php`, `app/Models/PdfTemplate.php`
+   - **Files:** `database/seeders/PdfTemplateSeeder.php`, `app/Models/PdfTemplate.php`, `database/seeders/DatabaseSeeder.php`
 
-2. **Address N+1 Query Risk**
-   - Convert accessors to explicit methods OR document eager loading
-   - Update callers to use new methods
+2. **✅ COMPLETED - Address N+1 Query Risk**
+   - ✅ Convert accessors to explicit methods
+   - ✅ Update callers to use new methods
+   - **Completed:** 2025-01-08
+   - **Changes:**
+     - Renamed `getSkillsAttribute()` → `getSkillsList()`
+     - Renamed `getExperiencesAttribute()` → `getExperiencesList()`
+     - Renamed `getEducationAttribute()` → `getEducationList()`
+     - Renamed `getHighlightsAttribute()` → `getHighlightsList()`
+     - Updated `CvReviewService` to use new methods
+     - Added PHPDoc with eager loading requirements
    - **Effort:** 4 hours
-   - **Files:** `app/Models/Cv.php`, `app/Services/CvReviewService.php`, `app/Livewire/CvReviewSidebar.php`
+   - **Files:** `app/Models/Cv.php`, `app/Services/CvReviewService.php`
 
 ### Medium Priority (First Sprint After Launch)
 
