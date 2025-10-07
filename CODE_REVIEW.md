@@ -458,17 +458,26 @@ While current tests are comprehensive, consider adding tests for these scenarios
 
 ### Medium Priority (First Sprint After Launch)
 
-3. **Add Database Indexes**
-   - Add index on `application_events.occurred_at`
-   - Consider composite indexes for frequently joined queries
+3. **✅ COMPLETED - Add Database Indexes**
+   - ✅ Add index on `application_events.occurred_at`
+   - ✅ Note: Composite indexes already exist in original migration
+   - **Completed:** 2025-01-08
+   - **Changes:**
+     - Created migration for `occurred_at` index
+     - Verified existing indexes on `job_application_id`, `event_type`, and composite
    - **Effort:** 1 hour
-   - **Files:** New migration
+   - **Files:** `database/migrations/2025_10_07_073911_add_occurred_at_index_to_application_events_table.php`
 
-4. **Improve PdfTemplate Default Handling**
-   - Add database constraint for single default
-   - Add health check for default template
+4. **✅ COMPLETED - Improve PdfTemplate Default Handling**
+   - ✅ Add observer to enforce single default
+   - ✅ Prevent deletion of default template
+   - **Completed:** 2025-01-08
+   - **Changes:**
+     - Created `PdfTemplateObserver` with `updating` and `deleting` hooks
+     - Registered observer in `AppServiceProvider`
+     - Note: Index on `is_default` already exists in original migration
    - **Effort:** 2 hours
-   - **Files:** Migration, health check
+   - **Files:** `app/Observers/PdfTemplateObserver.php`, `app/Providers/AppServiceProvider.php`
 
 ### Low Priority (Technical Debt)
 
