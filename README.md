@@ -1,6 +1,6 @@
 # CV Builder
 
-A focused job application productivity tool built with Laravel 12 and Filament 4. Track applications, tailor CVs, manage cover letters, and optimize your job search workflow—all in one place.
+A focused job application productivity tool built with Laravel 12 and Filament 4. Track applications, tailor CVs, manage cover letters, and optimize your job search workflow - all in one place.
 
 ## 🎯 Overview
 
@@ -12,7 +12,7 @@ CV Builder helps you manage the entire job application lifecycle:
 - **Monitor application metrics** and interview pipelines
 - **Link skill evidence** to specific experiences for better alignment
 
-Built following **KISS** and **YAGNI** principles—only essential features, implemented when validated as necessary.
+Built following **KISS** and **YAGNI** principles - only essential features, implemented when validated as necessary.
 
 ---
 

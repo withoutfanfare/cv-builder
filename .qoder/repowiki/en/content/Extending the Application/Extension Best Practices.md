@@ -139,7 +139,7 @@ This practice ensures alignment with the project's long-term vision and facilita
 
 ## Security Considerations
 
-When exposing new endpoints or extending existing ones, prioritize security by implementing input validation, output escaping, and rate limiting. Use Laravel's built-in validation rules and the `ValidCvReviewSchema` custom rule to ensure data integrity. Never trust external API responses—always validate and sanitize before use.
+When exposing new endpoints or extending existing ones, prioritize security by implementing input validation, output escaping, and rate limiting. Use Laravel's built-in validation rules and the `ValidCvReviewSchema` custom rule to ensure data integrity. Never trust external API responses - always validate and sanitize before use.
 
 For user-facing endpoints, apply rate limiting to prevent abuse. When handling sensitive data such as API keys, ensure they are stored in environment variables and never exposed in logs or client responses. The `CvReviewService` demonstrates secure practices by using configuration-based API keys and structured error handling.
 

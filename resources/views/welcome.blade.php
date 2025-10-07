@@ -4,12 +4,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ config('app.name', 'CV Builder') }}</title>
-    
+
     <meta name="description" content="Create a professional, ATS-friendly CV in minutes with modern templates using CV Builder.">
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:300,400,500,600,700&display=swap" rel="stylesheet" />
-    
+
     <!-- Styles -->
     <style>
         :root {
@@ -518,15 +518,15 @@
                 <div class="testimonial-wrapper">
                     <div class="testimonial">
                         <p>Switched from my old Word doc and within a week had two interview invites. The formatting alone levels you up.</p>
-                        <div class="author">— Alex (Product Manager)</div>
+                        <div class="author"> -  Alex (Product Manager)</div>
                     </div>
                     <div class="testimonial">
                         <p>The layout clarity forced me to rethink bullet points as achievements. It genuinely improved my story.</p>
-                        <div class="author">— Priya (Data Analyst)</div>
+                        <div class="author"> -  Priya (Data Analyst)</div>
                     </div>
                     <div class="testimonial">
                         <p>So fast to iterate versions. The structure keeps things tight and ATS parsing wasn’t an issue anymore.</p>
-                        <div class="author">— Tom (Software Engineer)</div>
+                        <div class="author"> -  Tom (Software Engineer)</div>
                     </div>
                 </div>
             </section>
@@ -585,15 +585,15 @@
                 flex-direction: column;
                 gap: 1rem;
             }
-            
+
             .hero {
                 padding: 2rem 0;
             }
-            
+
             .hero h1 {
                 font-size: 2rem;
             }
-            
+
             .auth-buttons {
                 width: 100%;
                 justify-content: center;
@@ -606,10 +606,10 @@
         <header>
             <div class="header-content">
                 <a href="/" class="logo">CV<span>Builder</span></a>
-                
+
                 <div class="auth-buttons">
                     <a href="/admin" class="btn btn-outline">Admin Login</a>
-                    
+
                     <button id="theme-toggle" class="theme-toggle">
                         <!-- Sun icon for light mode -->
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="sun-icon">
@@ -691,20 +691,20 @@
             const sunIcon = themeToggle.querySelector('.sun-icon');
             const moonIcon = themeToggle.querySelector('.moon-icon');
             const body = document.body;
-            
+
             // Check for saved theme preference or respect OS preference
             const savedTheme = localStorage.getItem('theme');
             const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
-            
+
             if (savedTheme === 'dark' || (!savedTheme && prefersDarkScheme.matches)) {
                 body.classList.add('dark-mode');
                 sunIcon.style.display = 'none';
                 moonIcon.style.display = 'block';
             }
-            
+
             themeToggle.addEventListener('click', function() {
                 body.classList.toggle('dark-mode');
-                
+
                 if (body.classList.contains('dark-mode')) {
                     localStorage.setItem('theme', 'dark');
                     sunIcon.style.display = 'none';

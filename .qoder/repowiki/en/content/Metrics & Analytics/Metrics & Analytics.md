@@ -232,7 +232,7 @@ The system retains metrics for historical tracking, allowing users to compare pe
 
 The metrics table includes timestamps for when each metric was last refreshed, providing transparency about data freshness. Users can see exactly when metrics were last updated, which builds trust in the accuracy of the analytics.
 
-No personally identifiable information is stored in the metrics table—only aggregated values and time periods. This approach complies with privacy best practices while still providing valuable insights into job search effectiveness.
+No personally identifiable information is stored in the metrics table - only aggregated values and time periods. This approach complies with privacy best practices while still providing valuable insights into job search effectiveness.
 
 **Section sources**
 - [Metric.php](file://app/Models/Metric.php#L1-L27)

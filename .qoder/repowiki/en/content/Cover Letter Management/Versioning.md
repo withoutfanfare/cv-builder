@@ -27,7 +27,7 @@ The cover letter versioning system enables users to create multiple variations o
 - [JobApplication.php](file://app/Models/JobApplication.php#L1-L123)
 
 ## Version Field and A/B Testing
-The `version` field in the `CoverLetter` model is an integer that starts at 1 and increments automatically for each new letter associated with a job application. This allows users to create multiple versions—such as Version 1 with a formal tone and Version 2 with an enthusiastic tone—to test which performs better. The version number provides a clear sequence and enables easy comparison between iterations.
+The `version` field in the `CoverLetter` model is an integer that starts at 1 and increments automatically for each new letter associated with a job application. This allows users to create multiple versions - such as Version 1 with a formal tone and Version 2 with an enthusiastic tone - to test which performs better. The version number provides a clear sequence and enables easy comparison between iterations.
 
 Example:
 - **Version 1**: Formal tone – "Dear Hiring Manager, I am writing to express my professional interest..."

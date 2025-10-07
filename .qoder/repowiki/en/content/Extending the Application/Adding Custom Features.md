@@ -260,4 +260,4 @@ Existing tests like `JobApplicationCrudTest` and `CvReviewServiceTest` serve as 
 - [CvReviewServiceTest.php](file://tests/Unit/CvReviewServiceTest.php)
 
 ## Conclusion
-Extending the cv-builder application requires understanding its architecture, conventions, and roadmap. By following the patterns established in existing code—Filament resources, service classes, Eloquent models, and Pest tests—developers can add robust, maintainable features. Always consult the specs directory for implementation contracts and validation criteria before starting new work.
+Extending the cv-builder application requires understanding its architecture, conventions, and roadmap. By following the patterns established in existing code - Filament resources, service classes, Eloquent models, and Pest tests - developers can add robust, maintainable features. Always consult the specs directory for implementation contracts and validation criteria before starting new work.
