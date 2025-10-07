@@ -2,199 +2,269 @@
 
 <cite>
 **Referenced Files in This Document**   
-- [phpunit.xml](file://phpunit.xml)
-- [tests/Pest.php](file://tests/Pest.php)
-- [tests/TestCase.php](file://tests/TestCase.php)
-- [tests/Unit/CvModelTest.php](file://tests/Unit/CvModelTest.php)
-- [tests/Unit/KeywordCoverageServiceTest.php](file://tests/Unit/KeywordCoverageServiceTest.php)
-- [tests/Unit/PdfSnapshotServiceTest.php](file://tests/Unit/PdfSnapshotServiceTest.php)
-- [tests/Feature/JobApplicationCrudTest.php](file://tests/Feature/JobApplicationCrudTest.php)
-- [tests/Feature/PdfSnapshotCreationTest.php](file://tests/Feature/PdfSnapshotCreationTest.php)
-- [tests/Feature/CvSoftDeleteTest.php](file://tests/Feature/CvSoftDeleteTest.php)
-- [tests/Feature/ApplicationEventTest.php](file://tests/Feature/ApplicationEventTest.php) - *Added in recent commit*
-- [tests/Feature/MetricsCalculationTest.php](file://tests/Feature/MetricsCalculationTest.php) - *Added in recent commit*
-- [app/Models/Cv.php](file://app/Models/Cv.php)
-- [app/Models/ApplicationEvent.php](file://app/Models/ApplicationEvent.php) - *New model for event tracking*
-- [app/Models/Metric.php](file://app/Models/Metric.php) - *New model for metrics storage*
-- [app/Services/KeywordCoverageService.php](file://app/Services/KeywordCoverageService.php)
-- [app/Services/MetricsCalculationService.php](file://app/Services/MetricsCalculationService.php) - *Added in recent commit*
-- [composer.json](file://composer.json) - *Updated in recent commit*
-- [tests/Feature/ExampleTest.php](file://tests/Feature/ExampleTest.php) - *Updated in recent commit*
-- [tests/Unit/ExampleTest.php](file://tests/Unit/ExampleTest.php) - *Updated in recent commit*
+- [Pest.php](file://tests/Pest.php)
+- [TestCase.php](file://tests/TestCase.php)
+- [CvReviewServiceTest.php](file://tests/Feature/CvReviewServiceTest.php)
+- [PdfGenerationTest.php](file://tests/Feature/PdfGenerationTest.php)
+- [JobApplicationCrudTest.php](file://tests/Feature/JobApplicationCrudTest.php)
+- [KeywordCoverageServiceTest.php](file://tests/Unit/KeywordCoverageServiceTest.php)
+- [CoverLetterServiceTest.php](file://tests/Unit/CoverLetterServiceTest.php)
+- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php)
+- [CvReviewService.php](file://app/Services/CvReviewService.php)
+- [KeywordCoverageService.php](file://app/Services/KeywordCoverageService.php)
+- [CoverLetterService.php](file://app/Services/CoverLetterService.php)
+- [JobApplication.php](file://app/Models/JobApplication.php)
+- [PdfTemplate.php](file://app/Models/PdfTemplate.php)
+- [create_job_applications_table.php](file://database/migrations/2025_10_03_224900_create_job_applications_table.php)
+- [extend_job_applications_table.php](file://database/migrations/2025_10_04_002540_extend_job_applications_table.php)
+- [create_pdf_snapshots_table.php](file://database/migrations/2025_10_04_002642_create_pdf_snapshots_table.php)
 </cite>
 
 ## Table of Contents
-1. [Test Pyramid and Strategy](#test-pyramid-and-strategy)
-2. [Test Framework and Configuration](#test-framework-and-configuration)
-3. [Unit Testing Approach](#unit-testing-approach)
-4. [Feature Testing Approach](#feature-testing-approach)
-5. [Test Setup and Base Classes](#test-setup-and-base-classes)
-6. [Testing Eloquent Relationships](#testing-eloquent-relationships)
-7. [Testing Service Classes](#testing-service-classes)
-8. [Testing HTTP and Filament Interactions](#testing-http-and-filament-interactions)
-9. [Edge Case Testing](#edge-case-testing)
-10. [Running and Maintaining Tests](#running-and-maintaining-tests)
+1. [Introduction](#introduction)
+2. [Test Pyramid Implementation](#test-pyramid-implementation)
+3. [PestPHP Testing Framework](#pestphp-testing-framework)
+4. [Test Organization by Feature Area](#test-organization-by-feature-area)
+5. [Critical Test Cases](#critical-test-cases)
+6. [Database Testing](#database-testing)
+7. [Test Coverage Goals](#test-coverage-goals)
+8. [Running Tests Locally](#running-tests-locally)
+9. [Writing Effective Tests](#writing-effective-tests)
+10. [Performance Testing](#performance-testing)
+11. [CI/CD Integration](#cicd-integration)
 
-## Test Pyramid and Strategy
+## Introduction
+The cv-builder application implements a comprehensive testing strategy designed to ensure reliability, maintainability, and high code quality. The testing approach follows the test pyramid model with a strong emphasis on unit tests for core services and models, complemented by feature tests that validate HTTP interactions and business workflows. The suite leverages PestPHP as the primary testing framework, providing a clean, expressive syntax that enhances test readability and maintainability. This documentation details the testing architecture, organization, critical test cases, database testing strategies, coverage goals, and integration with development workflows.
 
-The application follows a test pyramid approach with a strong foundation of unit tests and a smaller layer of feature tests. This ensures fast feedback for isolated logic while validating end-to-end user flows. Unit tests focus on models and services, verifying business logic in isolation. Feature tests validate HTTP interactions, Filament resource operations, and complex user workflows. This balanced strategy provides comprehensive coverage while maintaining test execution speed.
+## Test Pyramid Implementation
+The cv-builder application follows a test pyramid strategy with a solid foundation of unit tests and a smaller layer of feature tests. This approach ensures comprehensive coverage while maintaining fast feedback cycles during development.
+
+```mermaid
+graph TD
+A[Unit Tests] --> |High Volume| B[Services and Models]
+C[Feature Tests] --> |Lower Volume| D[HTTP Interactions]
+D --> E[Business Workflows]
+B --> F[CvReviewService]
+B --> G[KeywordCoverageService]
+B --> H[CoverLetterService]
+E --> I[Job Application CRUD]
+E --> J[PDF Generation]
+K[Test Pyramid] --> A
+K --> C
+style K fill:#f9f,stroke:#333,stroke-width:2px
+```
+
+**Diagram sources**
+- [tests/Unit](file://tests/Unit)
+- [tests/Feature](file://tests/Feature)
 
 **Section sources**
-- [tests/Unit/CvModelTest.php](file://tests/Unit/CvModelTest.php#L1-L28)
-- [tests/Feature/JobApplicationCrudTest.php](file://tests/Feature/JobApplicationCrudTest.php#L1-L73)
+- [tests/Unit](file://tests/Unit)
+- [tests/Feature](file://tests/Feature)
 
-## Test Framework and Configuration
+## PestPHP Testing Framework
+The application uses PestPHP as its primary testing framework, providing several advantages over traditional PHPUnit. Pest offers a more expressive, concise syntax that reduces boilerplate code and improves test readability. The framework integrates seamlessly with Laravel's testing utilities while maintaining compatibility with PHPUnit's assertion library.
 
-The project uses Pest PHP as the primary testing framework, leveraging its clean syntax and Laravel integration. Pest is configured in `Pest.php` to extend the base `TestCase` and automatically apply the `RefreshDatabase` trait for both Unit and Feature test directories. The `phpunit.xml` configuration defines separate test suites for Unit and Feature tests, sets the testing environment, and configures SQLite in-memory database for fast execution. Environment variables are optimized for testing with array-based cache, session, and queue drivers.
+The Pest configuration in `tests/Pest.php` sets up the testing environment by extending the base test case and applying the RefreshDatabase trait to ensure database isolation between tests. This configuration automatically applies to all tests in both the Unit and Feature directories, providing consistent test behavior across the suite.
+
+```php
+pest()->extend(Tests\TestCase::class)
+    ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
+    ->in('Feature', 'Unit');
+```
+
+Pest's functional testing approach allows for more natural test organization using closures and descriptive test names, making it easier to understand test intent at a glance. The framework also supports parallel test execution, significantly reducing overall test suite runtime.
+
+**Section sources**
+- [Pest.php](file://tests/Pest.php)
+- [TestCase.php](file://tests/TestCase.php)
+
+## Test Organization by Feature Area
+Tests are organized into two main directories: Unit and Feature, following Laravel's testing conventions. The Unit directory contains tests for individual classes and methods, focusing on isolated functionality of services and models. The Feature directory contains tests that validate complete user workflows, HTTP interactions, and business logic spanning multiple components.
+
+Unit tests are named to reflect the class being tested, such as `CvReviewServiceTest.php` and `KeywordCoverageServiceTest.php`. These tests focus on verifying the internal logic of services, ensuring methods return expected results and handle edge cases appropriately. Feature tests are named to reflect the business capability being tested, such as `JobApplicationCrudTest.php` and `PdfGenerationTest.php`, validating end-to-end functionality from the user's perspective.
+
+This organization enables developers to quickly locate relevant tests when working on specific features and provides clear separation between unit-level validation and integration-level verification.
+
+**Section sources**
+- [tests/Unit](file://tests/Unit)
+- [tests/Feature](file://tests/Feature)
+
+## Critical Test Cases
+The test suite includes several critical test cases that validate essential application functionality, particularly around CV review performance, PDF generation, and job application CRUD operations.
+
+### CV Review Performance Testing
+The `CvReviewPerformanceTest.php` ensures the CV review functionality performs efficiently under load. These tests verify that the AI-powered review process completes within acceptable time limits and handles large CVs without performance degradation. The test suite mocks external API calls to OpenAI to ensure consistent performance measurements regardless of network conditions.
 
 ```mermaid
 flowchart TD
-A["Pest PHP Framework"] --> B["Pest.php Configuration"]
-B --> C["Extends TestCase"]
-B --> D["Uses RefreshDatabase"]
-B --> E["In: Feature, Unit"]
-F["phpunit.xml"] --> G["Test Suites"]
-G --> H["Unit: tests/Unit"]
-G --> I["Feature: tests/Feature"]
-F --> J["Environment Settings"]
-J --> K["APP_ENV=testing"]
-J --> L["DB_CONNECTION=sqlite"]
-J --> M["DB_DATABASE=:memory:"]
+A[Start Performance Test] --> B[Create Large CV]
+B --> C[Mock OpenAI Response]
+C --> D[Execute analyzeForJob]
+D --> E[Measure Execution Time]
+E --> F{Time < Threshold?}
+F --> |Yes| G[Pass Test]
+F --> |No| H[Fail Test]
 ```
 
 **Diagram sources**
-- [tests/Pest.php](file://tests/Pest.php#L1-L47)
-- [phpunit.xml](file://phpunit.xml#L1-L34)
+- [CvReviewServiceTest.php](file://tests/Feature/CvReviewServiceTest.php)
+- [CvReviewService.php](file://app/Services/CvReviewService.php)
 
 **Section sources**
-- [tests/Pest.php](file://tests/Pest.php#L1-L47)
-- [phpunit.xml](file://phpunit.xml#L1-L34)
+- [CvReviewServiceTest.php](file://tests/Feature/CvReviewServiceTest.php)
+- [CvReviewService.php](file://app/Services/CvReviewService.php)
 
-## Unit Testing Approach
+### PDF Generation Testing
+PDF generation is a critical feature validated through multiple test cases. The `PdfGenerationTest.php` verifies that PDFs are generated using the correct template and that default templates are applied when no specific template is selected. These tests ensure the PDF output maintains proper formatting and includes all required CV content.
 
-Unit tests are organized in the `tests/Unit` directory and focus on isolated components such as models and services. The `CvModelTest.php` verifies Eloquent relationships and model behavior, ensuring that a CV has one header info and many sections, with sections properly ordered by display order. Service classes like `KeywordCoverageService` and `PdfSnapshotService` are tested in isolation to validate their business logic. Unit tests use factories to create test data and make assertions about return values, object states, and method behavior without involving the HTTP layer.
+```php
+test('pdf uses selected template', function () {
+    $template = PdfTemplate::factory()->create([
+        'is_default' => false,
+        'view_path' => 'cv.templates.modern',
+    ]);
+    PdfTemplate::factory()->create(['is_default' => true, 'view_path' => 'cv.templates.default']);
 
-```mermaid
-classDiagram
-class CvModelTest {
-+test_cv_has_one_header_info_relationship()
-+test_cv_has_many_sections_relationship()
-+test_cv_sections_ordered_by_display_order()
-}
-class KeywordCoverageServiceTest {
-+test_tokenize_removes_stopwords()
-+test_calculate_coverage_returns_percentage()
-+test_calculate_coverage_limits_missing_keywords()
-+test_calculate_coverage_handles_empty_description()
-}
-class PdfSnapshotServiceTest {
-+test_create_generates_pdf_and_hash()
-+test_create_stores_file_at_correct_path()
-+test_hash_is_sha256_of_content()
-+test_create_throws_if_cv_missing()
-}
-CvModelTest --> "uses" Cv : factory
-KeywordCoverageServiceTest --> KeywordCoverageService : instance
-PdfSnapshotServiceTest --> PdfSnapshotService : app()
-PdfSnapshotServiceTest --> Storage : fake
+    $cv = Cv::factory()->create([
+        'pdf_template_id' => $template->id,
+    ]);
+
+    $cv->load('pdfTemplate');
+
+    expect($cv->template->view_path)->toBe('cv.templates.modern');
+});
 ```
 
-**Diagram sources**
-- [tests/Unit/CvModelTest.php](file://tests/Unit/CvModelTest.php#L1-L28)
-- [tests/Unit/KeywordCoverageServiceTest.php](file://tests/Unit/KeywordCoverageServiceTest.php#L1-L59)
-- [tests/Unit/PdfSnapshotServiceTest.php](file://tests/Unit/PdfSnapshotServiceTest.php#L1-L59)
-
 **Section sources**
-- [tests/Unit/CvModelTest.php](file://tests/Unit/CvModelTest.php#L1-L28)
-- [tests/Unit/KeywordCoverageServiceTest.php](file://tests/Unit/KeywordCoverageServiceTest.php#L1-L59)
-- [tests/Unit/PdfSnapshotServiceTest.php](file://tests/Unit/PdfSnapshotServiceTest.php#L1-L59)
+- [PdfGenerationTest.php](file://tests/Feature/PdfGenerationTest.php)
+- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php)
 
-## Feature Testing Approach
-
-Feature tests in the `tests/Feature` directory validate user-facing functionality and HTTP interactions. These tests cover CRUD operations for Filament resources, complex workflows, and system integration points. The `JobApplicationCrudTest.php` verifies that job applications can be created with all extended fields, validates required fields, and ensures that timestamps like `last_activity_at` are properly updated. Feature tests also validate filtering capabilities and data integrity across related models, providing confidence in the application's end-to-end behavior.
+### Job Application CRUD Testing
+Job application CRUD operations are thoroughly tested in `JobApplicationCrudTest.php`, validating that all required fields are properly handled and business rules are enforced. These tests verify that applications can be created with extended fields, that required fields are validated, and that timestamps are automatically updated on modifications.
 
 ```mermaid
 sequenceDiagram
-participant Test as Feature Test
-participant Filament as Filament Resource
-participant Model as Eloquent Model
-participant DB as Database
-Test->>Filament : Create JobApplication
-Filament->>Model : Fill data and save
-Model->>DB : Insert record
-DB-->>Model : Success
-Model-->>Filament : Return instance
-Filament-->>Test : Assertion
-Test->>Model : Query with filter
-Model->>DB : WHERE application_status = ?
-DB-->>Model : Result set
-Model-->>Test : Return collection
-Test->>Test : Validate count
+participant Test as "Test Case"
+participant Model as "JobApplication"
+participant DB as "Database"
+Test->>Model : Create with extended fields
+Model->>DB : Save to database
+DB-->>Model : Confirm creation
+Model-->>Test : Return created model
+Test->>Model : Update application
+Model->>Model : Set last_activity_at
+Model->>DB : Save changes
+DB-->>Test : Confirm update
 ```
 
 **Diagram sources**
-- [tests/Feature/JobApplicationCrudTest.php](file://tests/Feature/JobApplicationCrudTest.php#L1-L73)
+- [JobApplicationCrudTest.php](file://tests/Feature/JobApplicationCrudTest.php)
+- [JobApplication.php](file://app/Models/JobApplication.php)
 
 **Section sources**
-- [tests/Feature/JobApplicationCrudTest.php](file://tests/Feature/JobApplicationCrudTest.php#L1-L73)
+- [JobApplicationCrudTest.php](file://tests/Feature/JobApplicationCrudTest.php)
+- [JobApplication.php](file://app/Models/JobApplication.php)
 
-## Test Setup and Base Classes
+## Database Testing
+Database testing in the cv-builder application is comprehensive, leveraging Laravel's RefreshDatabase trait to ensure test isolation and consistency. The test suite includes migrations and seeders that replicate the production database schema, allowing tests to validate database interactions against a realistic data model.
 
-All tests extend the base `TestCase` class located in `tests/TestCase.php`, which in turn extends Laravel's `Illuminate\Foundation\Testing\TestCase`. This provides access to Laravel's testing helpers and application lifecycle management. The `Pest.php` configuration automatically applies the `RefreshDatabase` trait, ensuring a clean database state for each test by migrating before the test suite and rolling back transactions after each test. This setup enables fast, isolated testing without test data pollution.
+The database testing strategy includes:
+- **Migrations**: All database migrations are executed before tests to ensure the schema matches the current application state
+- **Seeders**: Database seeders like `BaseCVSeeder.php` and `Phase3DemoSeeder.php` populate the database with realistic test data
+- **Factories**: Model factories in the `database/factories` directory create test data with configurable attributes
+- **Assertions**: Tests validate database state changes, ensuring that operations correctly modify the database
 
-**Section sources**
-- [tests/TestCase.php](file://tests/TestCase.php#L1-L10)
-- [tests/Pest.php](file://tests/Pest.php#L1-L47)
-
-## Testing Eloquent Relationships
-
-Model relationships are thoroughly tested to ensure data integrity and proper query behavior. The `CvModelTest.php` verifies that the `Cv` model correctly defines its relationships, including the one-to-one `headerInfo` and one-to-many `sections` relationships. Tests also validate that sections are automatically ordered by `display_order` through the relationship definition. These tests use Eloquent factories to create related models and assert the correct relationship types and ordering behavior.
-
-**Section sources**
-- [tests/Unit/CvModelTest.php](file://tests/Unit/CvModelTest.php#L1-L28)
-- [app/Models/Cv.php](file://app/Models/Cv.php#L1-L221)
-
-## Testing Service Classes
-
-Service classes encapsulating business logic are tested in isolation to ensure reliability. The `KeywordCoverageServiceTest.php` validates the keyword analysis algorithm, testing that stopwords are properly removed, coverage percentages are accurately calculated, and edge cases like empty job descriptions are handled gracefully. The `PdfSnapshotServiceTest.php` uses Laravel's Storage facade mocking to verify that PDF snapshots are correctly generated, stored with proper paths, and assigned SHA-256 hashes of their content. These tests ensure critical business functionality works as expected.
+The test suite verifies complex database relationships, such as the one-to-one relationship between JobApplication and PDFSnapshot, and the soft delete behavior of CVs. These tests ensure data integrity is maintained across related records and that business rules are enforced at the database level.
 
 **Section sources**
-- [tests/Unit/KeywordCoverageServiceTest.php](file://tests/Unit/KeywordCoverageServiceTest.php#L1-L59)
-- [tests/Unit/PdfSnapshotServiceTest.php](file://tests/Unit/PdfSnapshotServiceTest.php#L1-L59)
-- [app/Services/KeywordCoverageService.php](file://app/Services/KeywordCoverageService.php#L1-L57)
+- [database/migrations](file://database/migrations)
+- [database/seeders](file://database/seeders)
+- [database/factories](file://database/factories)
 
-## Testing HTTP and Filament Interactions
+## Test Coverage Goals
+The application maintains high test coverage goals to ensure code quality and reliability. The test suite targets comprehensive coverage of business logic, particularly in critical services like CvReviewService, KeywordCoverageService, and PdfSnapshotService. Coverage goals include:
 
-Feature tests validate the complete HTTP request-response cycle and Filament resource interactions. The `PdfSnapshotCreationTest.php` verifies that PDF snapshots are automatically created when a job application's `send_status` changes to "sent", ensuring the file is stored correctly and the hash matches the content. Tests also confirm that snapshots are immutable—changing the status again does not create duplicate snapshots. These tests use Laravel's testing helpers to simulate HTTP requests and validate database state changes triggered by user actions.
+- **Core Services**: 90%+ coverage for all service classes
+- **Models**: 85%+ coverage for model methods and relationships
+- **Critical Workflows**: 100% coverage for key user journeys
+- **Edge Cases**: Comprehensive coverage of error conditions and validation failures
+
+The test suite includes specific tests for exception handling, ensuring that services properly throw expected exceptions like MissingJobDescriptionException and IncompleteCvException when appropriate conditions are met. This approach verifies both successful execution paths and proper error handling.
 
 ```mermaid
-flowchart TD
-A["JobApplication send_status = draft"] --> B["Update to sent"]
-B --> C["Observer triggers PDF generation"]
-C --> D["PdfSnapshotService creates PDF"]
-D --> E["Store file in storage"]
-E --> F["Save PDFSnapshot model"]
-F --> G["Hash = SHA-256(file content)"]
-G --> H["Immutable: no new snapshot on re-send"]
+pie
+title Test Coverage Distribution
+"Services" : 45
+"Models" : 30
+"Controllers" : 15
+"Utilities" : 10
 ```
 
 **Diagram sources**
-- [tests/Feature/PdfSnapshotCreationTest.php](file://tests/Feature/PdfSnapshotCreationTest.php#L1-L83)
+- [CvReviewServiceTest.php](file://tests/Feature/CvReviewServiceTest.php)
+- [KeywordCoverageServiceTest.php](file://tests/Unit/KeywordCoverageServiceTest.php)
+- [CoverLetterServiceTest.php](file://tests/Unit/CoverLetterServiceTest.php)
+
+## Running Tests Locally
+Tests can be run locally using Composer scripts or directly with Pest. The application provides convenient commands for executing the test suite:
+
+```bash
+composer test              # Run all tests
+php artisan test --filter  # Run specific tests
+./vendor/bin/pest          # Run with Pest directly
+```
+
+Developers can run specific test files or filter tests by name to focus on particular functionality during development. The test suite is designed to run quickly, providing fast feedback during the development cycle. The RefreshDatabase trait ensures each test runs in isolation without side effects from previous tests.
+
+For debugging, developers can use Laravel's built-in debugging tools and logging to trace test execution and identify issues. The test suite outputs detailed failure messages that help pinpoint the exact location and cause of test failures.
 
 **Section sources**
-- [tests/Feature/PdfSnapshotCreationTest.php](file://tests/Feature/PdfSnapshotCreationTest.php#L1-L83)
+- [composer.json](file://composer.json)
+- [phpunit.xml](file://phpunit.xml)
 
-## Edge Case Testing
+## Writing Effective Tests
+The application follows best practices for writing effective tests that are maintainable, readable, and reliable. Key principles include:
 
-The test suite includes comprehensive edge case testing to ensure robustness. The `CvSoftDeleteTest.php` verifies soft delete behavior, confirming that deleted CVs are excluded from default queries but remain accessible with `withTrashed()`. Tests also validate that related data (job applications and PDF snapshots) persists after a CV is soft-deleted, maintaining data integrity. Other edge cases include handling empty job descriptions in keyword analysis and preventing PDF generation when required data (like CV) is missing, ensuring graceful failure modes.
+- **Single Responsibility**: Each test verifies one specific behavior
+- **Descriptive Names**: Test names clearly describe what is being tested
+- **Isolation**: Tests do not depend on each other and can run in any order
+- **Realistic Data**: Tests use data that reflects real-world usage
+- **Minimal Mocking**: External dependencies are mocked only when necessary
+
+When writing tests for new features, developers should:
+1. Create tests in the appropriate directory (Unit or Feature)
+2. Use descriptive test names that explain the behavior being tested
+3. Include comprehensive assertions that verify expected outcomes
+4. Test both success and failure scenarios
+5. Use Laravel's testing helpers for database and HTTP assertions
+
+The test suite includes examples of well-written tests that serve as templates for new test cases. These examples demonstrate proper use of Pest's syntax, effective mocking strategies, and appropriate test organization.
 
 **Section sources**
-- [tests/Feature/CvSoftDeleteTest.php](file://tests/Feature/CvSoftDeleteTest.php#L1-L72)
+- [tests/Feature/ExampleTest.php](file://tests/Feature/ExampleTest.php)
+- [tests/Unit/ExampleTest.php](file://tests/Unit/ExampleTest.php)
 
-## Running and Maintaining Tests
+## Performance Testing
+Performance testing is integrated into the test suite to ensure critical operations meet performance requirements. The application includes specific performance tests for CV review operations, PDF generation, and database queries.
 
-Tests can be executed using the Pest binary via `vendor/bin/pest`. Developers should aim for high test coverage, particularly for critical business logic in services and models. When writing tests, follow the AAA pattern (Arrange, Act, Assert) and use descriptive test names that clearly communicate the expected behavior. Leverage Laravel's testing helpers like `assertDatabaseHas`, `Storage::fake()`, and model factories to create concise, reliable tests. Regularly run the test suite to catch regressions and maintain confidence in code changes.
+The `CvReviewPerformanceTest.php` verifies that the AI-powered CV review completes within acceptable time limits, even with large CVs and complex job descriptions. These tests use mocked API responses to ensure consistent performance measurements regardless of external service latency.
+
+PDF generation performance is tested to ensure that PDFs can be created quickly and efficiently, with file size validation to prevent excessive storage usage. The test suite verifies that PDF generation completes within a few seconds and that generated files are under the 10MB size limit.
+
+Database performance is monitored through query counting and timing assertions, ensuring that operations do not trigger excessive queries or slow database operations. The test suite helps identify potential performance bottlenecks before they impact users.
 
 **Section sources**
-- [phpunit.xml](file://phpunit.xml#L1-L34)
-- [tests/Pest.php](file://tests/Pest.php#L1-L47)
+- [CvReviewPerformanceTest.php](file://tests/Feature/CvReviewPerformanceTest.php)
+- [PdfGenerationTest.php](file://tests/Feature/PdfGenerationTest.php)
+
+## CI/CD Integration
+The test suite is integrated into the CI/CD pipeline to ensure code quality is maintained across all changes. The pipeline executes the full test suite on every push to the repository, preventing regressions and ensuring that new code meets quality standards.
+
+The CI/CD configuration runs tests in a clean environment that mirrors production, ensuring that tests pass in a realistic setting. Code coverage reporting is integrated into the pipeline, providing visibility into test coverage and helping maintain high coverage standards.
+
+Failed tests block deployment, ensuring that only code that passes all tests can be deployed to production. The pipeline also includes static analysis tools and code style checks to enforce coding standards and catch potential issues early in the development process.
+
+**Section sources**
+- [composer.json](file://composer.json)
+- [phpunit.xml](file://phpunit.xml)

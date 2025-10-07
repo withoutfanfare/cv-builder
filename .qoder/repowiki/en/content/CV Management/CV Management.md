@@ -2,305 +2,218 @@
 
 <cite>
 **Referenced Files in This Document**   
-- [CvResource.php](file://app/Filament/Resources/Cvs/CvResource.php) - *Updated with improved UI/UX*
-- [Cv.php](file://app/Models/Cv.php) - *Core model with cloning and relationships*
+- [CvResource.php](file://app/Filament/Resources/Cvs/CvResource.php)
+- [CvForm.php](file://app/Filament/Resources/Cvs/Schemas/CvForm.php)
+- [CvsTable.php](file://app/Filament/Resources/Cvs/Tables/CvsTable.php)
+- [CreateCv.php](file://app/Filament/Resources/Cvs/Pages/CreateCv.php)
+- [EditCv.php](file://app/Filament/Resources/Cvs/Pages/EditCv.php)
+- [Cv.php](file://app/Models/Cv.php)
 - [CvSection.php](file://app/Models/CvSection.php)
-- [CvForm.php](file://app/Filament/Resources/Cvs/Schemas/CvForm.php) - *Enhanced with structured sections and icons*
-- [CvHeaderInfo.php](file://app/Models/CvHeaderInfo.php)
-- [CvSummary.php](file://app/Models/CvSummary.php)
-- [CvSkillCategory.php](file://app/Models/CvSkillCategory.php)
 - [CvExperience.php](file://app/Models/CvExperience.php)
-- [CvProject.php](file://app/Models/CvProject.php)
 - [CvEducation.php](file://app/Models/CvEducation.php)
-- [CvReference.php](file://app/Models/CvReference.php)
-- [CvCustomSection.php](file://app/Models/CvCustomSection.php)
-- [HeaderInfoRelationManager.php](file://app/Filament/Resources/Cvs/RelationManagers/HeaderInfoRelationManager.php) - *Updated with better organization*
-- [ExperienceRelationManager.php](file://app/Filament/Resources/Cvs/RelationManagers/ExperienceRelationManager.php) - *Enhanced with improved UI/UX*
+- [cv-edit-with-sidebar.blade.php](file://resources/views/filament/pages/cv-edit-with-sidebar.blade.php)
 </cite>
-
-## Update Summary
-**Changes Made**   
-- Updated documentation to reflect UI/UX improvements in CV form and relation managers
-- Added details about structured sections, icons, and collapsed sections in the form
-- Enhanced description of Personal Information and Online Presence sections with new field details
-- Updated HeaderInfoRelationManager documentation with improved organization
-- Added information about website_url field in header information
-- Improved accuracy of form schema examples and section descriptions
 
 ## Table of Contents
 1. [CV Structure and Components](#cv-structure-and-components)
 2. [Creating and Editing CVs](#creating-and-editing-cvs)
-3. [Section Management via Relation Managers](#section-management-via-relation-managers)
-4. [CV Cloning Mechanism](#cv-cloning-mechanism)
-5. [Soft Delete and Restoration](#soft-delete-and-restoration)
-6. [Programmatic CV Manipulation](#programmatic-cv-manipulation)
-7. [Common Issues and Validation](#common-issues-and-validation)
+3. [Section Management](#section-management)
+4. [UI Components and Edit Interface](#ui-components-and-edit-interface)
+5. [CV Cloning and Versioning](#cv-cloning-and-versioning)
+6. [Soft Delete and Archive](#soft-delete-and-archive)
 
 ## CV Structure and Components
 
-A CV in the system is composed of multiple sections, each representing a distinct part of the resume. The core structure is defined by the `Cv` model and its relationships with various section models. The main components include:
+The CV system is built around a hierarchical data model where a CV contains multiple sections, each with specific content types. The core model `Cv` serves as the parent entity that organizes all CV-related data.
 
-- **HeaderInfo**: Contains personal information such as full name, job title, contact details, and social links
+The main sections of a CV include:
+- **Header Information**: Personal details such as full name, job title, email, phone, location, and professional links (LinkedIn, GitHub, website)
 - **Summary**: A professional summary section
-- **Skills**: Organized into categories with JSON arrays of skills
-- **Experience**: Work experience entries with job titles, companies, dates, and highlights
-- **Projects**: Side projects with descriptions and technologies used
-- **Education**: Academic background including degrees and institutions
-- **References**: References text
-- **CustomSections**: User-defined sections for additional content
+- **Skills**: Organized into categories with JSON-stored skill arrays
+- **Experience**: Professional work history with job titles, companies, dates, and achievement highlights
+- **Education**: Academic background with degrees, institutions, and years
+- **Projects**: Notable projects with descriptions and technologies
+- **References**: Professional references
+- **Custom Sections**: User-defined sections for specialized content
 
-The relationships are structured through the `CvSection` model, which acts as a polymorphic container for different section types, maintaining order through the `display_order` field.
+These components are related through a well-defined Eloquent relationship structure. The `Cv` model has a one-to-one relationship with `CvHeaderInfo` and a one-to-many relationship with `CvSection`. Each `CvSection` then has morph-to-one relationships with specific content models like `CvSummary`, `CvExperience`, `CvEducation`, and `CvCustomSection`.
+
+```mermaid
+erDiagram
+Cv ||--o{ CvSection : "has many"
+Cv ||--|| CvHeaderInfo : "has one"
+CvSection }o--|| CvSummary : "has one"
+CvSection }o--|{ CvSkillCategory : "has many"
+CvSection }o--|{ CvExperience : "has many"
+CvSection }o--|{ CvProject : "has many"
+CvSection }o--|{ CvEducation : "has many"
+CvSection }o--|| CvReference : "has one"
+CvSection }o--|| CvCustomSection : "has one"
+Cv ||--|{ CVVersion : "has many"
+Cv ||--|{ PDFSnapshot : "has many"
+Cv ||--|| PdfTemplate : "belongs to"
+```
+
+**Diagram sources**
+- [Cv.php](file://app/Models/Cv.php#L15-L354)
+- [CvSection.php](file://app/Models/CvSection.php#L15-L67)
 
 **Section sources**
-- [Cv.php](file://app/Models/Cv.php#L10-L60)
-- [CvSection.php](file://app/Models/CvSection.php#L10-L60)
+- [Cv.php](file://app/Models/Cv.php#L15-L354)
+- [CvSection.php](file://app/Models/CvSection.php#L15-L67)
 
 ## Creating and Editing CVs
 
-Users can create and edit CVs through the Filament admin interface using the `CvResource`. The form schema is defined in `CvForm.php` and includes fields for the CV title and header information. When creating a new CV, users enter a descriptive title and fill in their personal details in the header section.
+Users create and edit CVs through the Filament admin interface using the `CvResource` which provides a comprehensive form interface. The creation process is handled by `CreateCv.php` and editing by `EditCv.php`, both extending Filament's page system.
 
-The form has been enhanced with improved UI/UX, featuring structured sections with descriptive icons and better organization. The form is organized into three main sections:
+When creating a new CV, the form collects both CV-level information (title, PDF template selection) and personal information (full name, job title, contact details). The form is structured into logical sections using Filament's `Section` component with appropriate icons and descriptions.
 
-1. **CV Information**: Contains the CV title field with descriptive placeholder and helper text
-2. **Personal Information**: Includes full name, job title, email, phone, and location fields in a two-column layout
-3. **Online Presence**: Collapsed by default, contains LinkedIn, GitHub, and personal website URLs
+The creation process involves two phases:
+1. First, the CV record is created
+2. Then, the associated `CvHeaderInfo` record is created with the CV's ID
 
-The form uses appropriate validation rules and input types:
-- Title is required with a maximum length of 255 characters
-- Email field has email validation and envelope icon
-- Phone field uses tel input type with phone icon
-- URL fields are validated as proper URLs with appropriate icons
-- The Online Presence section is collapsed by default to reduce visual clutter
+This two-phase approach is necessary because the `CvHeaderInfo` requires the CV's ID as a foreign key, which is only available after the CV is saved to the database.
+
+For editing existing CVs, the system uses `updateOrCreate` to handle both creation and updating of the header information, ensuring data consistency regardless of whether a header record already exists.
 
 ```mermaid
 flowchart TD
-Start([Create CV]) --> FormValidation["Validate Form Data"]
-FormValidation --> InputValid{"All Fields Valid?"}
-InputValid --> |No| ShowErrors["Display Validation Errors"]
-InputValid --> |Yes| SaveCV["Save CV to Database"]
-SaveCV --> CreateHeader["Create HeaderInfo Record"]
-CreateHeader --> Success["Redirect to CV List"]
-ShowErrors --> ReturnForm["Return to Form with Errors"]
-ReturnForm --> End([Form Submission])
-Success --> End
+A[Start CV Creation] --> B[Fill Form with CV and Header Data]
+B --> C[Submit Form]
+C --> D{Is Creating New CV?}
+D --> |Yes| E[Save CV Record First]
+E --> F[Create CvHeaderInfo with CV ID]
+F --> G[Complete]
+D --> |No| H[Update CV Record]
+H --> I[UpdateOrCreate CvHeaderInfo]
+I --> G
 ```
 
-**Diagram sources **
-- [CvForm.php](file://app/Filament/Resources/Cvs/Schemas/CvForm.php#L15-L99)
-- [CvResource.php](file://app/Filament/Resources/Cvs/CvResource.php#L20-L28)
+**Section sources**
+- [CreateCv.php](file://app/Filament/Resources/Cvs/Pages/CreateCv.php#L15-L34)
+- [EditCv.php](file://app/Filament/Resources/Cvs/Pages/EditCv.php#L50-L127)
+- [CvForm.php](file://app/Filament/Resources/Cvs/Schemas/CvForm.php#L10-L112)
+
+## Section Management
+
+CV sections are managed through Filament's relation managers, which provide a clean interface for adding, editing, and organizing content within each section type. The system supports both standard sections (Experience, Education, Skills) and custom sections.
+
+Each section has a `display_order` field that determines its position within the CV. Sections are automatically ordered by this field in ascending order, allowing users to control the sequence of sections in the final CV output.
+
+The relationship between sections and their content is polymorphic, with each `CvSection` having a `section_type` field that determines which content model it references. This flexible design allows for easy extension with new section types in the future.
+
+Section visibility is controlled through the database - sections are included in the CV output if they exist in the database and are ordered by their `display_order` value. There is no explicit "visibility" flag; instead, sections are effectively hidden by removing them from the database or not including them in the output generation process.
+
+```php
+// In Cv.php model
+public function sections(): HasMany
+{
+    return $this->hasMany(CvSection::class)->orderBy('display_order');
+}
+```
 
 **Section sources**
-- [CvForm.php](file://app/Filament/Resources/Cvs/Schemas/CvForm.php#L15-L99)
-- [CvResource.php](file://app/Filament/Resources/Cvs/CvResource.php#L20-L28)
+- [Cv.php](file://app/Models/Cv.php#L25-L30)
+- [CvSection.php](file://app/Models/CvSection.php#L15-L67)
 
-## Section Management via Relation Managers
+## UI Components and Edit Interface
 
-The Filament admin interface provides relation managers for each section type, allowing users to manage CV content through dedicated interfaces. These relation managers are registered in the `getRelations()` method of `CvResource` and include:
+The CV edit interface is enhanced with a sidebar implementation in `cv-edit-with-sidebar.blade.php`, which provides a rich editing experience with additional context and tools. This custom view is used when reviewing CVs, as indicated by the presence of a review parameter in the request.
 
-- **SummaryRelationManager**: For managing the professional summary
-- **SkillsRelationManager**: For organizing skills into categories
-- **ExperienceRelationManager**: For adding and editing work experiences
-- **ProjectsRelationManager**: For managing project entries
-- **EducationRelationManager**: For academic background
-- **ReferencesRelationManager**: For references text
-- **CustomSectionsRelationManager**: For user-defined sections
+The main edit interface uses Filament's form components organized into collapsible sections:
+- **CV Information**: Contains the CV title and PDF template selection
+- **Personal Information**: Includes full name, job title, email, phone, and location
+- **Online Presence**: Collapsed by default, containing LinkedIn, GitHub, and website URLs
 
-Each relation manager allows users to:
-- Add new section entries
-- Edit existing entries
-- Reorder entries using drag-and-drop (based on `display_order`)
-- Remove entries (soft delete)
+The interface includes several key actions:
+- **Download PDF**: Generates and downloads the CV as a PDF document
+- **Clone This CV**: Creates a complete copy of the CV with all sections
+- **Archive CV**: Soft deletes the CV, moving it to the archived state
 
-The **HeaderInfoRelationManager** has been improved with better organization, separating information into "Basic Information" and "Online Profiles" sections. The "Online Profiles" section is collapsed by default to reduce visual clutter. The manager includes fields for full name, job title, email, phone, location, LinkedIn URL, GitHub URL, and website URL.
-
-The **ExperienceRelationManager** has been enhanced with a more intuitive interface, organizing form fields into logical sections: "Position Details", "Employment Period", "Key Achievements", and "Display Order". The "Key Achievements" section uses a repeater component for adding multiple highlights with a text area placeholder encouraging the use of metrics.
-
-The sections are organized under the main CV record in the Filament interface, providing a hierarchical view of the CV structure. Users can navigate between section types and make changes without leaving the main CV editing context.
+The PDF download action includes an optional parameter for selecting a section focus profile, allowing users to generate tailored versions of their CV for different job applications.
 
 ```mermaid
 classDiagram
-class Cv {
-+string title
-+cloneCv(reason)
+class EditCv {
++getView() string
++getViewData() array
++getHeaderActions() array
++mutateFormDataBeforeFill(array) array
++mutateFormDataBeforeSave(array) array
 }
-class CvSection {
-+int cv_id
-+string section_type
-+int display_order
+class CvForm {
++configure(Schema) Schema
 }
-class CvHeaderInfo {
-+string full_name
-+string job_title
-+string email
-+string phone
-+string location
-+string linkedin_url
-+string github_url
-+string website_url
-}
-class CvSummary {
-+string content
-}
-class CvSkillCategory {
-+string category_name
-+array skills
-+int display_order
-}
-class CvExperience {
-+string job_title
-+string company_name
-+string location
-+date start_date
-+date end_date
-+boolean is_current
-+array highlights
-+int display_order
-}
-class CvProject {
-+string project_name
-+string description
-+string technologies
-+int display_order
-}
-class CvEducation {
-+string degree
-+string institution
-+int start_year
-+int end_year
-+string description
-+int display_order
-}
-class CvReference {
-+string content
-}
-class CvCustomSection {
-+string content
-}
-Cv "1" *-- "0..*" CvSection : contains
-Cv "1" -- "0..1" CvHeaderInfo : has
-CvSection "1" -- "0..1" CvSummary : summary
-CvSection "1" -- "0..*" CvSkillCategory : skillCategories
-CvSection "1" -- "0..*" CvExperience : experiences
-CvSection "1" -- "0..*" CvProject : projects
-CvSection "1" -- "0..*" CvEducation : education
-CvSection "1" -- "0..1" CvReference : reference
-CvSection "1" -- "0..1" CvCustomSection : customSection
+EditCv --> CvForm : "uses"
+EditCv --> "cv-edit-with-sidebar.blade.php" : "custom view"
 ```
 
-**Diagram sources **
-- [Cv.php](file://app/Models/Cv.php#L10-L60)
-- [CvSection.php](file://app/Models/CvSection.php#L10-L60)
-- [CvHeaderInfo.php](file://app/Models/CvHeaderInfo.php#L10-L30)
-- [CvSummary.php](file://app/Models/CvSummary.php#L7-L18)
-- [CvSkillCategory.php](file://app/Models/CvSkillCategory.php#L7-L24)
-- [CvExperience.php](file://app/Models/CvExperience.php#L7-L33)
-- [CvProject.php](file://app/Models/CvProject.php#L7-L22)
-- [CvEducation.php](file://app/Models/CvEducation.php#L7-L23)
-- [CvReference.php](file://app/Models/CvReference.php#L7-L18)
-- [CvCustomSection.php](file://app/Models/CvCustomSection.php#L7-L18)
+**Diagram sources**
+- [EditCv.php](file://app/Filament/Resources/Cvs/Pages/EditCv.php#L15-L127)
+- [cv-edit-with-sidebar.blade.php](file://resources/views/filament/pages/cv-edit-with-sidebar.blade.php)
 
 **Section sources**
-- [CvResource.php](file://app/Filament/Resources/Cvs/CvResource.php#L30-L50)
-- [HeaderInfoRelationManager.php](file://app/Filament/Resources/Cvs/RelationManagers/HeaderInfoRelationManager.php#L13-L106)
-- [ExperienceRelationManager.php](file://app/Filament/Resources/Cvs/RelationManagers/ExperienceRelationManager.php#L22-L249)
+- [EditCv.php](file://app/Filament/Resources/Cvs/Pages/EditCv.php#L15-L127)
+- [cv-edit-with-sidebar.blade.php](file://resources/views/filament/pages/cv-edit-with-sidebar.blade.php)
 
-## CV Cloning Mechanism
+## CV Cloning and Versioning
 
-The system provides a cloning mechanism that creates a complete copy of a CV with all its related data. This is implemented through the `cloneCv()` method in the `Cv` model, which performs a deep copy of the entire CV structure.
+The system provides robust CV cloning functionality that creates a complete deep copy of a CV with all its sections and content. This feature is accessible both from the list view (as a row action) and from the edit view (as a header action).
 
-When a user clones a CV:
-1. A version snapshot of the original CV is created and stored in the `cv_versions` table
-2. The main CV record is replicated with "(Copy)" appended to the title
-3. The header information is deeply copied
-4. All sections are replicated with their display order preserved
-5. Section-specific content (summary, skills, experiences, etc.) is copied based on the section type
+When a user clones a CV, the system performs the following operations in a database transaction:
+1. Creates a version snapshot of the original CV by storing its complete data structure as JSON in the `cv_versions` table
+2. Creates a new CV record with "(Copy)" appended to the title
+3. Deep copies all associated data including header information and all sections with their content
 
-The cloning process is wrapped in a database transaction to ensure data consistency. The method returns the newly created CV instance, allowing for further modifications.
+The cloning process preserves the relationships between all entities while generating new IDs for the cloned records, ensuring data independence between the original and cloned CVs.
+
+Version snapshots serve as a historical record of CV states, allowing users to track changes over time and revert to previous versions if needed. Each snapshot includes a reason field that documents why the snapshot was created.
+
+```php
+// In Cv.php model
+public function cloneCv(string $reason = 'manual clone'): Cv
+{
+    return DB::transaction(function () use ($reason) {
+        // Create version snapshot
+        CVVersion::create([
+            'cv_id' => $this->id,
+            'snapshot_json' => $this->toArray(),
+            'reason' => $reason,
+            'created_at' => now(),
+        ]);
+        
+        // Clone the CV and all related data
+        // ... implementation details
+    });
+}
+```
+
+**Section sources**
+- [Cv.php](file://app/Models/Cv.php#L250-L354)
+- [CvsTable.php](file://app/Filament/Resources/Cvs/Tables/CvsTable.php#L45-L70)
+- [EditCv.php](file://app/Filament/Resources/Cvs/Pages/EditCv.php#L35-L50)
+
+## Soft Delete and Archive
+
+The CV system implements soft delete functionality using Laravel's `SoftDeletes` trait, allowing users to archive CVs without permanently removing them from the database. This approach preserves related data such as job applications and PDF snapshots while removing the CV from the default view.
+
+The list view includes a status filter with two tabs:
+- **Active**: Shows non-deleted CVs (default view)
+- **Archived**: Shows soft-deleted CVs using the `withTrashed()` scope
+
+When a user deletes a CV, they are presented with a warning modal that clarifies the archiving behavior: "This CV will be archived. Job applications and PDF snapshots will remain accessible."
+
+Archived CVs can be restored through the admin interface by removing the `deleted_at` timestamp, returning them to the active state. This design follows the principle of data preservation, ensuring that historical records remain available for reference even when a CV is no longer actively used.
 
 ```mermaid
-sequenceDiagram
-participant User as "User"
-participant Interface as "Filament Interface"
-participant CV as "CV Model"
-participant DB as "Database"
-User->>Interface : Click "Clone CV" action
-Interface->>CV : Call cloneCv() method
-CV->>DB : Begin transaction
-CV->>DB : Create CVVersion snapshot
-DB-->>CV : Snapshot created
-CV->>DB : Replicate CV record
-DB-->>CV : New CV created
-CV->>DB : Replicate HeaderInfo
-DB-->>CV : HeaderInfo created
-CV->>DB : For each Section : Replicate section
-loop For each section type
-CV->>DB : Replicate section content
-end
-CV->>DB : Commit transaction
-DB-->>CV : Transaction committed
-CV-->>Interface : Return cloned CV
-Interface-->>User : Redirect to edit new CV
+stateDiagram-v2
+[*] --> Active
+Active --> Archived : "Delete/Archive"
+Archived --> Active : "Restore"
+Archived --> PermanentlyDeleted : "Hard delete (not implemented)"
 ```
 
-**Diagram sources **
-- [Cv.php](file://app/Models/Cv.php#L150-L220)
-
 **Section sources**
-- [Cv.php](file://app/Models/Cv.php#L150-L220)
-
-## Soft Delete and Restoration
-
-The CV system implements soft delete functionality using Laravel's `SoftDeletes` trait. When a user deletes a CV, it is not permanently removed from the database but marked with a `deleted_at` timestamp. This allows for restoration of accidentally deleted CVs.
-
-Key aspects of the soft delete implementation:
-- The `Cv` model uses the `SoftDeletes` trait
-- Deleted CVs are moved to an "Archived" status and can be viewed using the "Archived" filter
-- The delete action shows a warning modal explaining that the CV will be archived
-- Job applications and PDF snapshots associated with the CV remain accessible
-- Users can restore deleted CVs through the admin interface
-
-The system maintains data integrity by preserving all related records (sections, experiences, projects, etc.) when a CV is soft-deleted. This ensures that historical application data remains intact even if the CV is no longer actively used.
-
-**Section sources**
-- [Cv.php](file://app/Models/Cv.php#L15-L20)
-
-## Programmatic CV Manipulation
-
-The CV system provides programmatic interfaces for manipulating CV data outside the admin interface. The primary method is the `cloneCv()` method on the `Cv` model, which can be called from anywhere in the application code.
-
-Example usage:
-```php
-$originalCv = Cv::find(1);
-$clonedCv = $originalCv->cloneCv('Created variant for frontend role');
-```
-
-The method accepts an optional reason parameter that is stored with the version snapshot. This allows for tracking why a particular clone was created.
-
-Additional programmatic operations include:
-- Querying CVs with their sections using Eloquent relationships
-- Creating new CVs programmatically
-- Updating CV sections through their respective models
-- Retrieving CV versions for historical comparison
-
-**Section sources**
-- [Cv.php](file://app/Models/Cv.php#L150-L220)
-
-## Common Issues and Validation
-
-When working with CVs, several common issues may arise:
-
-**Missing Sections**: If a required section type is not present, the system handles this gracefully by returning empty collections or null values. For example, if a CV has no skills section, the `skillCategories()` relationship will return an empty collection rather than throwing an error.
-
-**Validation Errors**: The form validation prevents common input issues:
-- Required fields are validated on the server side
-- Email format is validated
-- URL fields are checked for proper format
-- String length limits prevent database overflow
-
-**Data Integrity**: The cloning process ensures that all relationships are properly maintained in the cloned CV. The transactional nature of the operation prevents partial clones where some sections might be missing.
-
-**Performance Considerations**: For CVs with many sections, the cloning operation could be resource-intensive. The system mitigates this by using efficient database operations and minimizing the number of queries through proper relationship loading.
-
-**Section sources**
-- [CvForm.php](file://app/Filament/Resources/Cvs/Schemas/CvForm.php#L15-L99)
-- [Cv.php](file://app/Models/Cv.php#L150-L220)
+- [CvsTable.php](file://app/Filament/Resources/Cvs/Tables/CvsTable.php#L25-L35)
+- [EditCv.php](file://app/Filament/Resources/Cvs/Pages/EditCv.php#L100-L110)
+- [Cv.php](file://app/Models/Cv.php#L18-L19)

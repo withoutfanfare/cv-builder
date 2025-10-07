@@ -2,212 +2,296 @@
 
 <cite>
 **Referenced Files in This Document**   
-- [CvPdfController.php](file://app/Http/Controllers/CvPdfController.php) - *Updated with profile filtering and enhanced filename structure*
-- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php) - *Updated with PDF size validation and path sanitization*
-- [pdf.blade.php](file://resources/views/cv/pdf.blade.php) - *PDF template with Tailwind CSS styling*
-- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php) - *Model for persistent PDF snapshots*
-- [create_pdf_snapshots_table.php](file://database/migrations/2025_10_04_002642_create_pdf_snapshots_table.php) - *Migration defining PDF snapshot schema*
-- [show.blade.php](file://resources/views/cv/show.blade.php) - *Blade template for on-demand PDF export*
-- [PdfSnapshotServiceTest.php](file://tests/Unit/PdfSnapshotServiceTest.php) - *Unit tests for PDF snapshot service*
-- [PdfSnapshotCreationTest.php](file://tests/Feature/PdfSnapshotCreationTest.php) - *Feature tests for snapshot creation workflow*
-- [filesystems.php](file://config/filesystems.php) - *Filesystem configuration for PDF storage*
-- [web.php](file://routes/web.php) - *Route definition for PDF download*
-- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php) - *Observer triggering snapshot creation*
-- [PDFSnapshotResource.php](file://app/Filament/Resources/PDFSnapshots/PDFSnapshotResource.php) - *Filament resource for snapshot management*
+- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php)
+- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php)
+- [CvPdfController.php](file://app/Http/Controllers/CvPdfController.php)
+- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php)
+- [pdf.blade.php](file://resources/views/cv/pdf.blade.php)
+- [default.blade.php](file://resources/views/cv/templates/default.blade.php)
+- [classic.blade.php](file://resources/views/cv/templates/classic.blade.php)
+- [modern.blade.php](file://resources/views/cv/templates/modern.blade.php)
+- [PdfTemplate.php](file://app/Models/PdfTemplate.php)
+- [filesystems.php](file://config/filesystems.php)
+- [JobApplication.php](file://app/Models/JobApplication.php)
 </cite>
 
-## Update Summary
-**Changes Made**   
-- Updated on-demand PDF export functionality to support profile-based filtering and reordering of sections
-- Enhanced filename generation to include profile information when applicable
-- Added PDF size validation (10MB limit) and path sanitization in snapshot service
-- Updated architecture overview to reflect changes in controller and service logic
-- Added new section on profile-based PDF generation
-- Updated troubleshooting guide with new validation checks
-
 ## Table of Contents
-1. [Introduction](#introduction)
-2. [Core Components](#core-components)
-3. [Architecture Overview](#architecture-overview)
-4. [Detailed Component Analysis](#detailed-component-analysis)
-5. [Dependency Analysis](#dependency-analysis)
+1. [PDF Snapshot Creation with Integrity Verification](#pdf-snapshot-creation-with-integrity-verification)
+2. [On-Demand PDF Export Feature](#on-demand-pdf-export-feature)
+3. [PDF Snapshot Model and Relationships](#pdf-snapshot-model-and-relationships)
+4. [Template Selection and Customization](#template-selection-and-customization)
+5. [File Storage and Retrieval Mechanism](#file-storage-and-retrieval-mechanism)
 6. [Performance Considerations](#performance-considerations)
-7. [Troubleshooting Guide](#troubleshooting-guide)
-8. [Conclusion](#conclusion)
+7. [Error Handling Strategies](#error-handling-strategies)
+8. [Application Lifecycle Integration](#application-lifecycle-integration)
 
-## Introduction
-The CV Builder application provides robust PDF generation capabilities through two distinct mechanisms: on-demand PDF export via the CvPdfController and persistent PDF snapshots stored as PDFSnapshot model instances. These features enable users to generate professional CV documents either interactively or automatically as part of their job application workflow. The system leverages Spatie Laravel-PDF to render Blade templates with preserved Tailwind CSS styling, ensuring consistent visual presentation across both web and PDF formats.
+## PDF Snapshot Creation with Integrity Verification
 
-## Core Components
+The PdfSnapshotService is responsible for creating immutable PDF versions of CVs with cryptographic integrity verification. This service ensures that when a job application is marked as "sent", a verifiable snapshot of the CV is permanently preserved.
 
-The PDF generation system consists of two primary use cases: on-demand PDF export via the CvPdfController and automated PDF snapshot creation through the PdfSnapshotService. The on-demand functionality allows users to download a PDF version of their CV directly from the show page, while the snapshot feature automatically generates and stores immutable PDF records when job applications are marked as "sent". Both systems utilize the same underlying rendering engine but serve different purposes within the application workflow.
+The service implements a robust workflow that begins with validating the presence of an associated CV. Once validated, it eagerly loads the complete CV with all related sections, experiences, education, skills, and other content to ensure the PDF reflects the exact state of the CV at submission time.
 
-**Section sources**
-- [CvPdfController.php](file://app/Http/Controllers/CvPdfController.php#L8-L64) - *Updated with profile filtering capability*
-- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php#L9-L71) - *Updated with size validation and sanitization*
-
-## Architecture Overview
-
-The PDF generation architecture follows a clear separation between interactive and automated workflows. The on-demand export path begins with a user request to the CvPdfController, which renders the CV data through a Blade template and returns a downloadable PDF. The automated snapshot process is triggered by changes to job application status, invoking the PdfSnapshotService to create a permanent record stored with cryptographic integrity verification.
+A critical component of the integrity verification process is the calculation of a SHA-256 hash of the generated PDF content. This cryptographic hash serves as a digital fingerprint that can be used to verify the file's integrity at any point in the future. The hash is calculated from the binary PDF content after generation and before storage.
 
 ```mermaid
-graph TD
-subgraph "On-Demand Export"
-A[Cv Show Page] --> B[CvPdfController]
-B --> C[Render show.blade.php]
-C --> D[Generate PDF]
-D --> E[Download Response]
-end
-subgraph "Persistent Snapshots"
-F[Job Application] --> G{Status Change}
-G --> |To 'sent'| H[PdfSnapshotService]
-H --> I[Render pdf.blade.php]
-I --> J[Calculate SHA-256 Hash]
-J --> K[Store in storage/app/pdf-snapshots/]
-K --> L[Create PDFSnapshot Record]
-end
-C --> M[Tailwind CSS Styling]
-I --> M
-M --> N[Consistent Visual Output]
+flowchart TD
+Start([Create Snapshot]) --> ValidateCV["Validate CV exists"]
+ValidateCV --> |CV missing| ThrowError["Throw Exception"]
+ValidateCV --> |CV exists| LoadCV["Load CV with all relationships"]
+LoadCV --> GeneratePDF["Generate PDF using cv.pdf view"]
+GeneratePDF --> ValidateSize["Validate PDF size < 10MB"]
+ValidateSize --> |Too large| ThrowError
+ValidateSize --> |Valid size| CalculateHash["Calculate SHA-256 hash"]
+CalculateHash --> DefinePath["Define storage path with ID and hash"]
+DefinePath --> StoreFile["Store PDF file in storage"]
+StoreFile --> CreateRecord["Create PDFSnapshot database record"]
+CreateRecord --> ReturnSnapshot["Return snapshot object"]
+ReturnSnapshot --> End([Snapshot created])
+ThrowError --> End
 ```
 
-**Diagram sources **
-- [CvPdfController.php](file://app/Http/Controllers/CvPdfController.php#L8-L64) - *Updated controller logic*
-- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php#L9-L71) - *Updated service with validation*
-- [show.blade.php](file://resources/views/cv/show.blade.php#L0-L279) - *Enhanced template with profile display*
-- [pdf.blade.php](file://resources/views/cv/pdf.blade.php#L0-L135) - *Template for snapshot generation*
-
-## Detailed Component Analysis
-
-### On-Demand PDF Export
-The CvPdfController handles interactive PDF generation requests from users. When a user requests to download their CV as a PDF, the controller loads all related data including header information, sections, and associated content. It then generates a timestamped filename using the CV title (slugified) and current date in YYYY-MM-DD format. The system uses Spatie Laravel-PDF to render the 'cv.show' Blade template with A4 paper format configuration. The controller now supports optional profile filtering through the $profile parameter, allowing users to generate PDFs with sections filtered and reordered according to predefined focus profiles.
+**Diagram sources**
+- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php#L9-L71)
 
 **Section sources**
-- [CvPdfController.php](file://app/Http/Controllers/CvPdfController.php#L8-L64) - *Updated with profile parameter and filtering logic*
-- [web.php](file://routes/web.php#L0-L10) - *Route definition with optional profile parameter*
+- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php#L9-L71)
 
-### Profile-Based PDF Generation
-The enhanced CvPdfController now supports generating PDFs with section filtering and reordering based on SectionFocusProfile selections. When a profile ID is provided, the controller uses the getSectionsWithProfile method to retrieve sections according to the profile's configuration. The filename generation has been updated to include the profile name (slugified) when present, following the pattern: cv-{slug}-{profileName}-{date}.pdf. The show.blade.php template displays the profile name in the header when a profile is applied, providing visual confirmation of the filtering.
+## On-Demand PDF Export Feature
 
-**Section sources**
-- [CvPdfController.php](file://app/Http/Controllers/CvPdfController.php#L8-L64) - *Profile filtering implementation*
-- [show.blade.php](file://resources/views/cv/show.blade.php#L0-L279) - *Profile name display in header*
-- [Cv.php](file://app/Models/Cv.php#L0-L100) - *getSectionsWithProfile method (implied)*
+The CvPdfController provides an on-demand PDF export feature that allows users to generate and download PDF versions of their CVs at any time. This controller handles user-initiated requests for PDF downloads and orchestrates the generation process using Laravel's PDF rendering capabilities.
 
-### Persistent PDF Snapshots
-The PdfSnapshotService manages the creation of immutable PDF records for audit purposes. When a job application's send status changes to 'sent', the service generates a PDF snapshot that serves as a permanent record of the CV at that point in time. Each snapshot includes a SHA-256 hash of the PDF content for integrity verification, stored file path, and references to the associated job application and CV. The service now includes PDF size validation (maximum 10MB) to prevent storage exhaustion and sanitizes the job application ID for file path generation.
+When a user requests a PDF export, the controller first loads the complete CV with all its relationships, including header information, sections, skills, experiences, and education. It then determines the appropriate template to use for rendering, either the user's selected template or the default template if none is selected.
 
-```mermaid
-classDiagram
-class PdfSnapshotService {
-+create(JobApplication) PDFSnapshot
-}
-class PDFSnapshot {
-+job_application_id
-+cv_id
-+cv_version_id
-+file_path
-+hash
-+created_at
-}
-class JobApplication {
-+send_status
-+cv_id
-}
-class Cv {
-+title
-}
-PdfSnapshotService --> PDFSnapshot : "creates"
-PdfSnapshotService --> JobApplication : "reads"
-PDFSnapshot --> JobApplication : "belongsTo"
-PDFSnapshot --> Cv : "belongsTo"
-```
-
-**Diagram sources **
-- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php#L9-L71) - *Updated service with validation*
-- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php#L0-L44) - *Snapshot model definition*
-- [create_pdf_snapshots_table.php](file://database/migrations/2025_10_04_002642_create_pdf_snapshots_table.php#L0-L33) - *Database schema*
-
-### Template Rendering and Styling
-Both PDF generation methods utilize the same rendering pipeline through Spatie Laravel-PDF, which converts HTML and Blade templates into PDF documents. The system preserves Tailwind CSS styling by including the CDN script in the template and configuring the PDF generator to wait for JavaScript execution. The pdf.blade.php template contains dedicated styling for PDF output, including font definitions, spacing, and layout rules optimized for print media. The show.blade.php template uses Tailwind CSS with Poppins font and custom accent colors for enhanced visual presentation.
-
-**Section sources**
-- [pdf.blade.php](file://resources/views/cv/pdf.blade.php#L0-L135) - *Basic PDF styling*
-- [show.blade.php](file://resources/views/cv/show.blade.php#L0-L279) - *Tailwind CSS implementation*
-- [config/filesystems.php](file://config/filesystems.php#L0-L80) - *Storage configuration*
-
-### Service Layer Implementation
-The PdfSnapshotService orchestrates the entire snapshot creation process. It first validates that the job application has an associated CV, then loads all related data for complete rendering. The service generates the PDF content, calculates its SHA-256 hash, stores the file in the local filesystem, and creates a database record linking all components. The file path follows a deterministic pattern: "pdf-snapshots/{job_application_id}_{hash}.pdf", ensuring uniqueness and traceability. The service now validates that the generated PDF does not exceed 10MB and sanitizes the job application ID for the file path.
+The controller generates a descriptive filename that includes the CV title, optional profile name, and current date to ensure uniqueness and provide context. The PDF is rendered using the selected Blade template with A4 format specifications before being delivered as a downloadable response to the user.
 
 ```mermaid
 sequenceDiagram
-participant J as JobApplication
-participant S as PdfSnapshotService
-participant P as Spatie PDF
-participant F as Filesystem
-participant D as Database
-J->>S : send_status changes to 'sent'
-S->>S : Validate CV exists
-S->>S : Load CV with all relationships
-S->>P : Generate PDF from pdf.blade.php
-P-->>S : Return PDF content
-S->>S : Calculate SHA-256 hash
-S->>S : Validate PDF size < 10MB
-S->>S : Sanitize job application ID
-S->>F : Store file with hashed filename
-F-->>S : Confirmation
-S->>D : Create PDFSnapshot record
-D-->>S : Snapshot object
-S-->>J : Complete
+participant User as "User"
+participant Controller as "CvPdfController"
+participant Pdf as "Spatie\\LaravelPdf"
+participant View as "Blade Template"
+User->>Controller : Request PDF download
+Controller->>Controller : Load CV with relationships
+Controller->>Controller : Check for profile filter
+Controller->>Controller : Generate filename with profile context
+Controller->>Pdf : Create PDF from view('cv.show')
+Pdf->>View : Render HTML content
+View-->>Pdf : HTML output
+Pdf->>Controller : PDF object with A4 format
+Controller-->>User : Initiate download
 ```
 
-**Diagram sources **
-- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php#L9-L71) - *Complete service implementation*
-- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php#L0-L44) - *Model for database record*
-- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php#L7-L43) - *Observer triggering service*
-
-## Dependency Analysis
-
-The PDF generation system depends on several key components and configurations. The Spatie Laravel-PDF package provides the core PDF rendering capability, while Laravel's Storage facade manages file persistence. The system relies on proper configuration of the filesystem disk, with files stored in the 'local' disk at storage_path('app/private'). Database constraints ensure referential integrity between PDF snapshots, job applications, and CVs, with foreign key relationships and unique indexes on critical fields. The JobApplicationObserver listens for status changes and triggers the PdfSnapshotService when appropriate.
-
-```mermaid
-graph TD
-A[PdfSnapshotService] --> B[Spatie Laravel-PDF]
-A --> C[Laravel Storage]
-A --> D[Database]
-A --> E[JobApplicationObserver]
-B --> F[Headless Chrome]
-C --> G[local disk configuration]
-D --> H[pdf_snapshots table]
-H --> I[job_applications table]
-H --> J[cvs table]
-G --> K[filesystems.php]
-E --> A
-```
-
-**Diagram sources **
-- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php#L9-L71) - *Service dependencies*
-- [filesystems.php](file://config/filesystems.php#L0-L80) - *Disk configuration*
-- [create_pdf_snapshots_table.php](file://database/migrations/2025_10_04_002642_create_pdf_snapshots_table.php#L0-L33) - *Database schema*
-- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php#L7-L43) - *Observer implementation*
+**Diagram sources**
+- [CvPdfController.php](file://app/Http/Controllers/CvPdfController.php#L15-L64)
 
 **Section sources**
-- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php#L9-L71) - *Service implementation*
-- [filesystems.php](file://config/filesystems.php#L0-L80) - *Storage configuration*
+- [CvPdfController.php](file://app/Http/Controllers/CvPdfController.php#L15-L64)
+
+## PDF Snapshot Model and Relationships
+
+The PDFSnapshot model represents an immutable record of a CV exported as a PDF for a job application. It serves as the data backbone for the PDF snapshot system, storing metadata and references that enable verification and retrieval.
+
+The model has a one-to-one relationship with the JobApplication model, ensuring that each job application can have at most one PDF snapshot. This relationship is enforced at the database level with a unique constraint on the job_application_id field. The model also maintains a belongs-to relationship with the CV model, preserving a reference to the CV that was used to generate the snapshot.
+
+Key attributes of the PDFSnapshot model include the file_path, which stores the relative storage path of the PDF file, and the hash field, which contains the SHA-256 hash of the PDF content for integrity verification. The created_at timestamp records when the snapshot was generated, providing an audit trail of submission events.
+
+```mermaid
+classDiagram
+class PDFSnapshot {
++id : bigint
++job_application_id : bigint
++cv_id : bigint
++cv_version_id : bigint
++file_path : string
++hash : string
++created_at : timestamp
++jobApplication() : BelongsTo
++cv() : BelongsTo
++cvVersion() : BelongsTo
+}
+class JobApplication {
++id : bigint
++cv_id : bigint
++send_status : string
++pdfSnapshot() : HasOne
+}
+class Cv {
++id : bigint
++title : string
++pdfSnapshots() : HasMany
+}
+PDFSnapshot --> JobApplication : "belongsTo"
+PDFSnapshot --> Cv : "belongsTo"
+JobApplication --> PDFSnapshot : "hasOne"
+Cv --> PDFSnapshot : "hasMany"
+```
+
+**Diagram sources**
+- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php#L1-L44)
+- [JobApplication.php](file://app/Models/JobApplication.php#L1-L122)
+- [Cv.php](file://app/Models/Cv.php#L1-L342)
+
+**Section sources**
+- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php#L1-L44)
+
+## Template Selection and Customization
+
+The PDF generation system supports template selection and customization through the PdfTemplate model and associated Blade templates. Users can select from multiple predefined templates or rely on the default template for rendering their CVs as PDFs.
+
+The PdfTemplate model stores metadata about each available template, including its name, description, view_path, and whether it is the default template. The view_path attribute specifies the Blade template file to use when generating PDFs with that template. Three primary templates are available: default, classic, and modern, each offering distinct styling and layout approaches.
+
+When generating a PDF, the system first checks if a specific template is selected for the CV. If no template is selected, it falls back to the default template. This allows users to maintain consistent branding across their applications while providing flexibility for different contexts or preferences.
+
+```mermaid
+classDiagram
+class PdfTemplate {
++id : bigint
++name : string
++slug : string
++description : text
++view_path : string
++preview_image_path : string
++is_default : boolean
++cvs() : HasMany
++default() : self
+}
+class Cv {
++id : bigint
++pdf_template_id : bigint
++template() : BelongsTo
+}
+PdfTemplate --> Cv : "hasMany"
+Cv --> PdfTemplate : "belongsTo"
+```
+
+**Diagram sources**
+- [PdfTemplate.php](file://app/Models/PdfTemplate.php#L1-L35)
+- [Cv.php](file://app/Models/Cv.php#L1-L342)
+
+**Section sources**
+- [PdfTemplate.php](file://app/Models/PdfTemplate.php#L1-L35)
+
+## File Storage and Retrieval Mechanism
+
+The PDF generation system implements a structured file storage and retrieval mechanism that ensures both security and integrity. PDF files are stored in the local disk configuration defined in the filesystems.php configuration file, specifically in the private storage directory.
+
+Files are stored with a deterministic naming convention that incorporates both the job application ID and the SHA-256 hash of the PDF content: `pdf-snapshots/{job_application_id}_{hash}.pdf`. This pattern provides several benefits: predictable file locations, built-in integrity verification through the filename, prevention of duplicate files, and easy identification of the source application.
+
+The retrieval process is handled through Laravel's Storage facade, which abstracts the underlying file system operations. When a user requests to download a PDF snapshot, the system verifies the user's permissions, confirms the file exists in storage, and streams the file to the user with the appropriate MIME type. No temporary files are created on the server during this process.
+
+```mermaid
+sequenceDiagram
+participant Service as "PdfSnapshotService"
+participant Pdf as "Spatie\\LaravelPdf"
+participant Storage as "Storage Facade"
+participant DB as "Database"
+Service->>Service : Validate CV exists
+Service->>Service : Load CV with relationships
+Service->>Pdf : Generate PDF from view('cv.pdf')
+Pdf-->>Service : PDF object
+Service->>Service : Extract base64 content
+Service->>Service : Decode to binary
+Service->>Service : Validate size < 10MB
+Service->>Service : Calculate SHA-256 hash
+Service->>Storage : Save file to pdf-snapshots/
+Storage-->>Service : Confirmation
+Service->>DB : Create PDFSnapshot record
+DB-->>Service : Snapshot model
+Service-->>Service : Return snapshot
+```
+
+**Diagram sources**
+- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php#L9-L71)
+- [filesystems.php](file://config/filesystems.php#L10-L18)
+
+**Section sources**
+- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php#L9-L71)
+- [filesystems.php](file://config/filesystems.php#L10-L18)
 
 ## Performance Considerations
 
-PDF generation is a resource-intensive operation that requires careful consideration of performance implications. The system loads all CV relationships eagerly to minimize database queries during rendering, but this can result in significant memory usage for complex CVs. Generation time should remain under 3 seconds for typical CVs with up to 10 sections. The automated snapshot process occurs synchronously during job application status updates, so performance directly impacts user experience. File storage operations are optimized through Laravel's filesystem abstraction, with files written directly to the local disk without additional processing. The 10MB size limit prevents excessive resource consumption from overly large CVs.
+The PDF generation system includes several performance considerations to ensure efficient operation, particularly when generating large numbers of PDFs. The system is designed to handle the computational intensity of PDF rendering while maintaining responsiveness and preventing resource exhaustion.
 
-## Troubleshooting Guide
+A key performance optimization is the 10MB file size limit imposed on generated PDFs. This limit prevents storage exhaustion and ensures that PDFs remain manageable in size for both storage and transmission. The validation occurs after PDF generation but before storage, allowing the system to reject oversized files without consuming storage space.
 
-Common issues with PDF generation typically fall into three categories: styling inconsistencies, file storage problems, and missing dependencies. For styling issues, verify that Tailwind CSS is properly loaded in the template and that all CSS classes are included in the purge configuration. File storage permissions must allow write access to the storage/app/pdf-snapshots directory, and the web server must have appropriate permissions to execute the PDF generation process. If PDF snapshots are not being created automatically, verify that the JobApplication observer is properly registered and that the cv_id is present when send_status changes to 'sent'. Hash verification failures indicate file corruption or modification, requiring recreation of the snapshot. PDFs exceeding 10MB will be rejected by the PdfSnapshotService, requiring content reduction in the CV.
+The system employs eager loading of CV relationships to minimize database queries during PDF generation. By loading all necessary data in a single query, the system reduces the N+1 query problem that could significantly impact performance when rendering complex CVs with many sections and related entities.
+
+Database indexing on the hash field enables fast duplicate detection and verification operations. This optimization is particularly important for the hash verification feature, which needs to quickly compare stored hashes with recalculated values from file content.
 
 **Section sources**
-- [PdfSnapshotServiceTest.php](file://tests/Unit/PdfSnapshotServiceTest.php#L0-L59) - *Unit tests including size validation*
-- [PdfSnapshotCreationTest.php](file://tests/Feature/PdfSnapshotCreationTest.php#L0-L83) - *Feature tests for snapshot creation*
-- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php#L7-L43) - *Observer error handling*
+- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php#L9-L71)
 
-## Conclusion
+## Error Handling Strategies
 
-The PDF generation system in the CV Builder application provides a comprehensive solution for both interactive and automated document creation. By leveraging Spatie Laravel-PDF and Laravel's robust ecosystem, the system delivers consistent, styled PDF outputs while maintaining data integrity through cryptographic hashing. The dual approach of on-demand exports and persistent snapshots addresses both user-facing and audit requirements, creating a flexible and reliable document generation workflow. Recent enhancements including profile-based filtering, improved filename generation, PDF size validation, and path sanitization have strengthened the system's functionality and security.
+The PDF generation system implements comprehensive error handling strategies to ensure reliability and provide meaningful feedback when issues occur. The system follows a fail-safe approach that prioritizes the completion of primary operations while gracefully handling PDF generation failures.
+
+In the JobApplicationObserver, PDF snapshot creation is wrapped in a try-catch block that logs errors but does not prevent the job application update from completing. This ensures that users can still mark applications as "sent" even if PDF generation fails temporarily due to issues like template rendering errors or storage problems.
+
+The PdfSnapshotService validates critical conditions before proceeding with PDF generation. It checks for the presence of an associated CV and validates the PDF size before storage. If any validation fails, it throws descriptive exceptions that can be caught and handled by calling components.
+
+For file integrity verification, the system provides a hash verification feature that recalculates the SHA-256 hash of the stored PDF content and compares it with the stored hash value. Discrepancies trigger appropriate error notifications, alerting users to potential file corruption or tampering.
+
+```mermaid
+flowchart TD
+A[Job Application Updated] --> B{send_status changed?}
+B --> |No| C[Exit]
+B --> |Yes| D{send_status = 'sent'?}
+D --> |No| C
+D --> |Yes| E{Snapshot exists?}
+E --> |Yes| C
+E --> |No| F[Call PdfSnapshotService::create()]
+F --> G{Success?}
+G --> |Yes| H[Continue]
+G --> |No| I[Log error]
+I --> J[Continue application flow]
+```
+
+**Diagram sources**
+- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php#L24-L35)
+
+**Section sources**
+- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php#L1-L42)
+
+## Application Lifecycle Integration
+
+PDF snapshots are deeply integrated into the job application lifecycle, particularly at the point of submission. The system automatically creates PDF snapshots when job applications are marked as "sent" through an observer pattern that listens for model events.
+
+The JobApplicationObserver monitors the "updated" event on the JobApplication model and triggers PDF snapshot creation when the send_status changes from "draft" to "sent" and no existing snapshot is present. This automation ensures that every submitted application has a verifiable record of the CV content at the time of submission.
+
+This integration serves multiple purposes: it provides proof of submission, preserves the exact state of the CV for future reference, and enables verification of application materials. The immutable nature of the snapshots means that even if a user later modifies their CV, the original version submitted with the application remains preserved and verifiable.
+
+The system also supports manual PDF generation through the CvPdfController, allowing users to export their CVs at any point in the creation process. This on-demand capability complements the automated snapshot creation, giving users flexibility in how and when they generate PDF versions of their CVs.
+
+```mermaid
+sequenceDiagram
+participant JobApplication as JobApplication
+participant Observer as Observer
+participant Service as PdfSnapshotService
+participant PDF as Spatie PDF
+participant Storage as Storage
+participant Database as Database
+participant Filament as Filament UI
+JobApplication->>Observer : send_status changes to 'sent'
+Observer->>Service : Trigger create()
+Service->>JobApplication : Validate CV exists
+Service->>JobApplication : Load CV with relationships
+Service->>PDF : Generate PDF from cv.pdf view
+PDF-->>Service : Return PDF content
+Service->>Service : Validate PDF size (<10MB)
+Service->>Service : Calculate SHA-256 hash
+Service->>Storage : Store PDF file
+Storage-->>Service : Confirm storage
+Service->>Database : Create PDFSnapshot record
+Database-->>Service : Return snapshot
+Service-->>Filament : Available for viewing
+Filament->>User : Display snapshot in UI
+```
+
+**Diagram sources**
+- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php)
+- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php)
+- [pdf.blade.php](file://resources/views/cv/pdf.blade.php)
+
+**Section sources**
+- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php#L1-L42)
+- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php#L9-L71)

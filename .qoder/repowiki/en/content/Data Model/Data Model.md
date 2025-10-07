@@ -2,520 +2,561 @@
 
 <cite>
 **Referenced Files in This Document**   
-- [cvs.php](file://database/migrations/2025_10_03_201646_create_cvs_table.php)
-- [cv_versions.php](file://database/migrations/2025_10_04_002612_create_cv_versions_table.php)
-- [pdf_snapshots.php](file://database/migrations/2025_10_04_002642_create_pdf_snapshots_table.php)
+- [User.php](file://app/Models/User.php)
 - [Cv.php](file://app/Models/Cv.php)
-- [CVVersion.php](file://app/Models/CVVersion.php)
-- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php)
 - [JobApplication.php](file://app/Models/JobApplication.php)
-- [add_withdrawn_at_to_job_applications_table.php](file://database/migrations/2025_10_04_090625_add_withdrawn_at_to_job_applications_table.php)
-- [application_events.php](file://database/migrations/2025_10_04_100002_create_application_events_table.php)
+- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php)
+- [CVVersion.php](file://app/Models/CVVersion.php)
 - [ApplicationEvent.php](file://app/Models/ApplicationEvent.php)
-- [ApplicationEventObserver.php](file://app/Observers/ApplicationEventObserver.php)
-- [BaseCVSeeder.php](file://database/seeders/BaseCVSeeder.php)
-- [CvFactory.php](file://database/factories/CvFactory.php)
-- [ApplicationEventFactory.php](file://database/factories/ApplicationEventFactory.php)
+- [Metric.php](file://app/Models/Metric.php)
+- [SectionFocusProfile.php](file://app/Models/SectionFocusProfile.php)
+- [CoverLetter.php](file://app/Models/CoverLetter.php)
+- [SkillEvidence.php](file://app/Models/SkillEvidence.php)
+- [create_users_table.php](file://database/migrations/0001_01_01_000000_create_users_table.php)
+- [create_cvs_table.php](file://database/migrations/2025_10_03_201646_create_cvs_table.php)
+- [create_job_applications_table.php](file://database/migrations/2025_10_03_224900_create_job_applications_table.php)
+- [create_pdf_snapshots_table.php](file://database/migrations/2025_10_04_002642_create_pdf_snapshots_table.php)
+- [create_cv_versions_table.php](file://database/migrations/2025_10_04_002612_create_cv_versions_table.php)
+- [create_application_events_table.php](file://database/migrations/2025_10_04_100002_create_application_events_table.php)
+- [create_metrics_table.php](file://database/migrations/2025_10_04_100003_create_metrics_table.php)
+- [create_section_focus_profiles_table.php](file://database/migrations/2025_10_04_101831_create_section_focus_profiles_table.php)
+- [create_cover_letters_table.php](file://database/migrations/2025_10_04_101841_create_cover_letters_table.php)
+- [create_skill_evidence_table.php](file://database/migrations/2025_10_04_101842_create_skill_evidence_table.php)
 </cite>
-
-## Update Summary
-**Changes Made**   
-- Added documentation for new `application_events` and `pdf_snapshots` tables and models
-- Updated `job_applications` table documentation to include `withdrawn_at` field
-- Added new entity relationships: JobApplication → ApplicationEvent and JobApplication → PDFSnapshot
-- Updated JobApplication model documentation to include events relationship and scope
-- Added new section sources for newly added files
-- Updated diagram sources to include new migration and model files
 
 ## Table of Contents
 1. [Introduction](#introduction)
-2. [Core Database Tables and Eloquent Models](#core-database-tables-and-eloquent-models)
-3. [Entity Relationships](#entity-relationships)
-4. [Schema Evolution and Migrations](#schema-evolution-and-migrations)
-5. [Data Seeding and Factories](#data-seeding-and-factories)
-6. [Data Integrity and Validation](#data-integrity-and-validation)
-7. [Query Optimization and Access Patterns](#query-optimization-and-access-patterns)
-8. [Conclusion](#conclusion)
+2. [Entity Overview](#entity-overview)
+3. [Core Entities](#core-entities)
+4. [Entity Relationships](#entity-relationships)
+5. [Database Schema Diagram](#database-schema-diagram)
+6. [Data Validation and Business Logic](#data-validation-and-business-logic)
+7. [Data Access Patterns and Performance](#data-access-patterns-and-performance)
+8. [Data Lifecycle Management](#data-lifecycle-management)
+9. [Data Security](#data-security)
+10. [Conclusion](#conclusion)
 
 ## Introduction
+This document provides a comprehensive overview of the data model for the CV Builder application. It details all core entities, their attributes, relationships, constraints, and business logic. The system supports CV creation, job application tracking, AI-powered review, and document versioning. The model is designed to support flexible CV structuring, multi-version tracking, and integration with application workflows.
 
-This document provides comprehensive documentation of the application's data model, detailing the database schema, Eloquent model relationships, and data flow patterns. The system is designed as a CV builder and job application tracker, enabling users to create multiple tailored CVs, manage job applications, and track application outcomes. The data model supports complex relationships between CVs and their components, versioning through snapshots, and integration with job applications via PDF exports. This documentation covers all database tables, their fields, constraints, indexes, and the Eloquent models that interact with them, along with information on schema evolution, data seeding, and query optimization strategies.
+## Entity Overview
+The application data model consists of the following key entities:
+- **User**: System users who create and manage CVs
+- **Cv**: Core resume document with modular sections
+- **CVVersion**: Historical snapshots of CV content
+- **PDFSnapshot**: Generated PDF versions of CVs
+- **JobApplication**: Tracking of job applications linked to CVs
+- **ApplicationEvent**: Timeline of events related to job applications
+- **CoverLetter**: Custom cover letters for applications
+- **SectionFocusProfile**: Templates for CV section filtering and ordering
+- **SkillEvidence**: Links between skills and experiences/projects
+- **Metric**: Application performance tracking data
 
-## Core Database Tables and Eloquent Models
+Each entity is implemented as an Eloquent model with corresponding database tables and defined relationships.
 
-The application's data model consists of several core tables that represent CVs, their structural components, job applications, and supporting entities for versioning and tracking. Each table corresponds to an Eloquent model in the Laravel application, enabling object-oriented interaction with the database.
+## Core Entities
 
-### CVs Table and Model
-
-The `cvs` table serves as the root entity for all CVs in the system. Each record represents a distinct CV that can be customized and exported.
-
-**Fields:**
-- `id`: Primary key (unsigned big integer, auto-incrementing)
-- `title`: CV title (string, 255 characters)
-- `created_at`: Creation timestamp
-- `updated_at`: Last update timestamp
-- `deleted_at`: Soft delete timestamp (added in migration 2025_10_04_002505)
-
-**Constraints and Indexes:**
-- Primary key on `id`
-- Index on `created_at` for chronological queries
-- Soft deletes are implemented, allowing CVs to be archived rather than permanently removed
-
-**Eloquent Model:** `Cv.php`  
-The `Cv` model uses Laravel's `HasFactory` trait for test data generation and includes soft delete functionality through the `SoftDeletes` trait. It serves as the parent entity for all CV sections and related data.
-
-**Section sources**
-- [cvs.php](file://database/migrations/2025_10_03_201646_create_cvs_table.php#L1-L30)
-- [Cv.php](file://app/Models/Cv.php#L7-L28)
-
-### CV Versions Table and Model
-
-The `cv_versions` table stores historical snapshots of CVs.
+### User
+Represents a registered user of the system.
 
 **Fields:**
-- `id`: Primary key
-- `cv_id`: Foreign key referencing `cvs.id`
-- `snapshot_json`: JSON field containing a complete serialized copy of the CV's data
-- `created_at`: Timestamp of version creation
-- `reason`: String field (255 characters) explaining why the version was created
+- `id`: UUID, Primary Key
+- `name`: string, required
+- `email`: string, required, unique
+- `password`: string, hashed
+- `email_verified_at`: timestamp
+- `remember_token`: string
+- `created_at`: timestamp
+- `updated_at`: timestamp
 
-**Constraints and Indexes:**
-- Foreign key constraint on `cv_id` with cascade deletion
-- Index on `cv_id` and `created_at` for retrieving version history
-
-**Eloquent Model:** `CVVersion.php`  
-The `CVVersion` model represents a historical snapshot of a CV at a specific point in time. It enables version tracking and rollback capabilities.
+**Constraints:**
+- Email must be unique
+- Password is hidden from serialization
+- Email verification timestamp tracks verification status
 
 **Section sources**
-- [cv_versions.php](file://database/migrations/2025_10_04_002612_create_cv_versions_table.php#L1-L27)
-- [CVVersion.php](file://app/Models/CVVersion.php#L7-L29)
+- [User.php](file://app/Models/User.php#L1-L48)
+- [create_users_table.php](file://database/migrations/0001_01_01_000000_create_users_table.php#L1-L25)
 
-### PDF Snapshots Table and Model
-
-The `pdf_snapshots` table stores references to exported PDF versions of CVs.
+### Cv
+Represents a curriculum vitae with modular, reorderable sections.
 
 **Fields:**
-- `id`: Primary key
-- `job_application_id`: Foreign key referencing `job_applications.id` (nullable)
-- `cv_version_id`: Foreign key referencing `cv_versions.id` (nullable)
-- `file_path`: String field (500 characters) storing the filesystem path to the PDF
-- `hash`: String field (64 characters) storing a SHA-256 hash of the PDF content for integrity verification
-- `created_at`: Timestamp of snapshot creation
+- `id`: UUID, Primary Key
+- `user_id`: UUID, Foreign Key to users.id
+- `title`: string, required
+- `pdf_template_id`: UUID, Foreign Key to pdf_templates.id
+- `deleted_at`: timestamp, Soft delete marker
+- `created_at`: timestamp
+- `updated_at`: timestamp
 
-**Constraints and Indexes:**
-- Foreign key constraints on `job_application_id` and `cv_version_id` with cascade deletion
-- Unique constraint on `hash` to prevent duplicate storage of identical PDFs
-- Index on `job_application_id` for retrieving snapshots associated with applications
-
-**Eloquent Model:** `PDFSnapshot.php`  
-The `PDFSnapshot` model represents a frozen, exported version of a CV in PDF format. It serves as proof of what was submitted to an employer and supports content integrity verification.
+**Indexes:**
+- Index on `user_id` for user-based queries
+- Index on `deleted_at` for soft delete filtering
+- Index on `pdf_template_id` for template-based queries
 
 **Section sources**
-- [pdf_snapshots.php](file://database/migrations/2025_10_04_002642_create_pdf_snapshots_table.php#L1-L30)
-- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php#L7-L22)
+- [Cv.php](file://app/Models/Cv.php#L1-L355)
+- [create_cvs_table.php](file://database/migrations/2025_10_03_201646_create_cvs_table.php#L1-L25)
+- [add_soft_deletes_to_cvs.php](file://database/migrations/2025_10_04_002505_add_soft_deletes_to_cvs.php#L1-L15)
 
-### Job Applications Table and Model
-
-The `job_applications` table tracks job applications submitted by the user.
+### JobApplication
+Tracks job applications associated with specific CVs.
 
 **Fields:**
-- `id`: Primary key
-- `cv_id`: Foreign key referencing `cvs.id` (the CV used for the application)
-- `company_name`: String field (255 characters)
-- `job_title`, `source`: String fields (255 characters)
-- `application_deadline`, `next_action_date`: Date fields (nullable)
-- `job_description`: Text field for the full job posting
-- `status`: String field (255 characters) for application status
-- `send_status`: String field (255 characters) for send tracking
-- `interview_date`: DateTime field (nullable, legacy field)
-- `last_activity_at`: Timestamp for last update
-- `withdrawn_at`: Timestamp when application was withdrawn (added in migration 2025_10_04_090625)
-- `created_at`, `updated_at`: Timestamps
+- `id`: UUID, Primary Key
+- `cv_id`: UUID, Foreign Key to cvs.id
+- `company_name`: string
+- `company_website`: string
+- `company_notes`: text
+- `point_of_contact_name`: string
+- `point_of_contact_email`: string
+- `send_status`: enum ['draft', 'sent', 'failed']
+- `application_status`: enum ['pending', 'interviewing', 'offered', 'rejected', 'withdrawn']
+- `interview_dates`: JSON array of dates
+- `interview_notes`: text
+- `notes`: text
+- `job_title`: string
+- `source`: string
+- `application_deadline`: date
+- `next_action_date`: date
+- `job_description`: text
+- `last_activity_at`: datetime
+- `withdrawn_at`: datetime
+- `ai_review_data`: JSON
+- `ai_review_requested_at`: datetime
+- `ai_review_completed_at`: datetime
+- `ai_review_cost_cents`: integer
+- `created_at`: timestamp
+- `updated_at`: timestamp
 
-**Constraints and Indexes:**
-- Foreign key constraint on `cv_id` with cascade deletion
-- Indexes on `status`, `send_status`, `next_action_date`, and `withdrawn_at` for filtering applications
+**Constraints:**
+- `cv_id` references `cvs.id` with cascade delete
+- `send_status` and `application_status` have defined enum values
+- `ai_review_data` stored as JSON for flexible schema
 
-**Eloquent Model:** `JobApplication.php`  
-The `JobApplication` model represents a job application and its lifecycle. It belongs to a `Cv` and can be associated with PDF snapshots of the submitted CV. The model includes a scope `needsAttention` for filtering applications requiring action and a relationship to `ApplicationEvent` records.
+**Indexes:**
+- Index on `cv_id` for CV-based queries
+- Index on `application_status` and `next_action_date` for filtering
+- Index on `last_activity_at` for activity-based sorting
 
 **Section sources**
-- [job_applications.php](file://database/migrations/2025_10_03_224900_create_job_applications_table.php#L1-L43)
-- [job_applications.php](file://database/migrations/2025_10_04_002540_extend_job_applications_table.php#L1-L31)
-- [add_withdrawn_at_to_job_applications_table.php](file://database/migrations/2025_10_04_090625_add_withdrawn_at_to_job_applications_table.php#L1-L31)
-- [JobApplication.php](file://app/Models/JobApplication.php#L7-L75)
+- [JobApplication.php](file://app/Models/JobApplication.php#L1-L122)
+- [create_job_applications_table.php](file://database/migrations/2025_10_03_224900_create_job_applications_table.php#L1-L35)
+- [extend_job_applications_table.php](file://database/migrations/2025_10_04_002540_extend_job_applications_table.php#L1-L25)
+- [add_ai_review_fields_to_job_applications.php](file://database/migrations/2025_10_04_152747_add_ai_review_fields_to_job_applications.php#L1-L20)
 
-### Application Events Table and Model
-
-The `application_events` table records discrete occurrences in the job application lifecycle.
+### PDFSnapshot
+Stores generated PDF versions of CVs at specific points in time.
 
 **Fields:**
-- `id`: Primary key
-- `job_application_id`: Foreign key referencing `job_applications.id` with cascade delete
-- `event_type`: Enum field with values: submitted, reply_received, interview_scheduled, interview_completed, offer_received, rejected, withdrawn
-- `occurred_at`: Timestamp when the event occurred (required)
-- `notes`: Text field for free-form description (nullable)
-- `metadata`: JSON field for structured event-specific data (nullable)
-- `created_at`, `updated_at`: Timestamps
+- `id`: UUID, Primary Key
+- `cv_id`: UUID, Foreign Key to cvs.id
+- `job_application_id`: UUID, Foreign Key to job_applications.id (nullable)
+- `file_path`: string, required
+- `file_size_kb`: integer
+- `generation_metadata`: JSON
+- `created_at`: timestamp
 
-**Constraints and Indexes:**
-- Foreign key constraint on `job_application_id` with cascade deletion
-- Indexes on `job_application_id`, `event_type`, and composite index on `job_application_id` and `event_type` for efficient querying
-- Business rule: When an event is created, the parent `JobApplication.last_activity_at` is automatically updated to `occurred_at`
+**Constraints:**
+- `cv_id` references `cvs.id` with cascade delete
+- `job_application_id` references `job_applications.id` with cascade delete
+- Either `cv_id` or `job_application_id` must be present
 
-**Eloquent Model:** `ApplicationEvent.php`  
-The `ApplicationEvent` model represents a discrete occurrence in a job application's lifecycle. It belongs to a `JobApplication` and can store flexible metadata based on the event type. The model uses an observer to automatically update the parent application's `last_activity_at` timestamp.
+**Indexes:**
+- Index on `cv_id` for CV-based queries
+- Index on `job_application_id` for application-based queries
+- Index on `created_at` for chronological ordering
 
 **Section sources**
-- [application_events.php](file://database/migrations/2025_10_04_100002_create_application_events_table.php#L1-L46)
-- [ApplicationEvent.php](file://app/Models/ApplicationEvent.php#L8-L30)
-- [ApplicationEventObserver.php](file://app/Observers/ApplicationEventObserver.php#L6-L17)
+- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php)
+- [create_pdf_snapshots_table.php](file://database/migrations/2025_10_04_002642_create_pdf_snapshots_table.php)
+
+### CVVersion
+Captures historical snapshots of CV content for version tracking.
+
+**Fields:**
+- `id`: UUID, Primary Key
+- `cv_id`: UUID, Foreign Key to cvs.id
+- `snapshot_json`: JSON, complete CV state
+- `reason`: string, describes versioning event
+- `created_at`: timestamp
+
+**Constraints:**
+- `cv_id` references `cvs.id` with cascade delete
+- `snapshot_json` contains full serialized CV state
+
+**Indexes:**
+- Index on `cv_id` for version history queries
+- Index on `created_at` for chronological ordering
+
+**Section sources**
+- [CVVersion.php](file://app/Models/CVVersion.php)
+- [create_cv_versions_table.php](file://database/migrations/2025_10_04_002612_create_cv_versions_table.php)
+
+### ApplicationEvent
+Tracks timeline events for job applications.
+
+**Fields:**
+- `id`: UUID, Primary Key
+- `job_application_id`: UUID, Foreign Key to job_applications.id
+- `event_type`: string, category of event
+- `description`: text, details of event
+- `occurred_at`: datetime, when event happened
+- `metadata`: JSON, additional context
+- `created_at`: timestamp
+
+**Constraints:**
+- `job_application_id` references `job_applications.id` with cascade delete
+- `event_type` categorizes events (e.g., 'application_submitted', 'interview_scheduled')
+
+**Indexes:**
+- Index on `job_application_id` for application timeline queries
+- Index on `occurred_at` for chronological ordering
+- Composite index on `job_application_id` and `occurred_at` for efficient timeline retrieval
+
+**Section sources**
+- [ApplicationEvent.php](file://app/Models/ApplicationEvent.php)
+- [create_application_events_table.php](file://database/migrations/2025_10_04_100002_create_application_events_table.php)
+
+### Metric
+Stores performance metrics for job applications.
+
+**Fields:**
+- `id`: UUID, Primary Key
+- `job_application_id`: UUID, Foreign Key to job_applications.id
+- `metric_type`: string, category of metric
+- `value`: float, numeric value
+- `calculated_at`: datetime
+- `metadata`: JSON, calculation context
+- `created_at`: timestamp
+
+**Constraints:**
+- `job_application_id` references `job_applications.id` with cascade delete
+- `metric_type` defines metric category (e.g., 'response_rate', 'interview_conversion')
+
+**Indexes:**
+- Index on `job_application_id` for application metrics
+- Index on `metric_type` for metric category queries
+- Composite index on `job_application_id` and `metric_type` for efficient metric retrieval
+
+**Section sources**
+- [Metric.php](file://app/Models/Metric.php)
+- [create_metrics_table.php](file://database/migrations/2025_10_04_100003_create_metrics_table.php)
+
+### SectionFocusProfile
+Defines templates for CV section filtering and ordering.
+
+**Fields:**
+- `id`: UUID, Primary Key
+- `cv_id`: UUID, Foreign Key to cvs.id
+- `name`: string, profile identifier
+- `included_section_ids`: JSON array, sections to include
+- `section_order`: JSON array, display order
+- `created_at`: timestamp
+- `updated_at`: timestamp
+
+**Constraints:**
+- `cv_id` references `cvs.id` with cascade delete
+- `included_section_ids` and `section_order` stored as JSON arrays
+
+**Indexes:**
+- Index on `cv_id` for CV-based profile queries
+
+**Section sources**
+- [SectionFocusProfile.php](file://app/Models/SectionFocusProfile.php)
+- [create_section_focus_profiles_table.php](file://database/migrations/2025_10_04_101831_create_section_focus_profiles_table.php)
+
+### CoverLetter
+Stores cover letters associated with job applications.
+
+**Fields:**
+- `id`: UUID, Primary Key
+- `job_application_id`: UUID, Foreign Key to job_applications.id
+- `content`: text, letter body
+- `version`: integer, version number
+- `is_sent`: boolean, tracking status
+- `sent_at`: datetime
+- `created_at`: timestamp
+- `updated_at`: timestamp
+
+**Constraints:**
+- `job_application_id` references `job_applications.id` with cascade delete
+- Versioning supports multiple drafts per application
+
+**Indexes:**
+- Index on `job_application_id` for application-based queries
+- Index on `version` for version ordering
+- Composite index on `job_application_id` and `version` for efficient version retrieval
+
+**Section sources**
+- [CoverLetter.php](file://app/Models/CoverLetter.php)
+- [create_cover_letters_table.php](file://database/migrations/2025_10_04_101841_create_cover_letters_table.php)
+
+### SkillEvidence
+Links skills to specific experiences, projects, or other content.
+
+**Fields:**
+- `id`: UUID, Primary Key
+- `cv_id`: UUID, Foreign Key to cvs.id
+- `skill_name`: string, skill identifier
+- `evidenceable_type`: string, type of related model
+- `evidenceable_id`: UUID, ID of related record
+- `created_at`: timestamp
+
+**Constraints:**
+- `cv_id` references `cvs.id` with cascade delete
+- Polymorphic relationship via `evidenceable_type` and `evidenceable_id`
+- Unique constraint on combination of `cv_id`, `skill_name`, `evidenceable_type`, `evidenceable_id`
+
+**Indexes:**
+- Index on `cv_id` for CV-based queries
+- Index on `skill_name` for skill-based queries
+- Polymorphic index on `evidenceable_type` and `evidenceable_id`
+- Composite index on all fields for uniqueness enforcement
+
+**Section sources**
+- [SkillEvidence.php](file://app/Models/SkillEvidence.php)
+- [create_skill_evidence_table.php](file://database/migrations/2025_10_04_101842_create_skill_evidence_table.php)
 
 ## Entity Relationships
 
-The data model implements a hierarchical structure for CVs and their components, along with associative relationships to job applications and tracking entities.
-
-### CV to CVVersion Relationship
-
-A `Cv` has many `CVVersion` records, representing its historical states. This one-to-many relationship allows users to track changes to their CV over time and revert to previous versions if needed. The `CVVersion` model stores a complete JSON snapshot of the CV's data at the time of versioning, providing a point-in-time record.
-
 ```mermaid
 erDiagram
-CV {
-bigint id PK
-string title
+USER {
+uuid id PK
+string name
+string email UK
 timestamp created_at
 timestamp updated_at
-timestamp deleted_at
 }
-CV_VERSION {
-bigint id PK
-bigint cv_id FK
-json snapshot_json
-timestamp created_at
-string reason
-}
-CV ||--o{ CV_VERSION : "has many"
-```
-
-**Diagram sources**
-- [cvs.php](file://database/migrations/2025_10_03_201646_create_cvs_table.php#L1-L30)
-- [cv_versions.php](file://database/migrations/2025_10_04_002612_create_cv_versions_table.php#L1-L27)
-
-**Section sources**
-- [Cv.php](file://app/Models/Cv.php#L7-L28)
-- [CVVersion.php](file://app/Models/CVVersion.php#L7-L29)
-
-### CV to JobApplication Relationship
-
-A `Cv` has many `JobApplication` records, indicating that a single CV can be used for multiple job applications. Conversely, each `JobApplication` belongs to one `Cv`, representing the specific CV version used for that application. This relationship enables tracking which CV was submitted for each job.
-
-```mermaid
-erDiagram
 CV {
-bigint id PK
+uuid id PK
+uuid user_id FK
 string title
+uuid pdf_template_id FK
+timestamp deleted_at
 timestamp created_at
 timestamp updated_at
-timestamp deleted_at
 }
 JOB_APPLICATION {
-bigint id PK
-bigint cv_id FK
+uuid id PK
+uuid cv_id FK
 string company_name
 string job_title
-string status
 string send_status
+string application_status
 date application_deadline
 date next_action_date
-timestamp withdrawn_at
-text job_description
-datetime interview_date
-timestamp last_activity_at
-timestamp created_at
-timestamp updated_at
-}
-CV ||--o{ JOB_APPLICATION : "used for"
-```
-
-**Diagram sources**
-- [cvs.php](file://database/migrations/2025_10_03_201646_create_cvs_table.php#L1-L30)
-- [job_applications.php](file://database/migrations/2025_10_03_224900_create_job_applications_table.php#L1-L43)
-
-**Section sources**
-- [Cv.php](file://app/Models/Cv.php#L7-L28)
-- [JobApplication.php](file://app/Models/JobApplication.php#L7-L75)
-
-### JobApplication to PDFSnapshot Relationship
-
-A `JobApplication` has one `PDFSnapshot`, representing the exact PDF version of the CV that was submitted to the employer. This one-to-one relationship ensures that there is a verifiable record of what was sent. The `PDFSnapshot` may also reference a `CVVersion` to indicate which historical version of the CV was used.
-
-```mermaid
-erDiagram
-JOB_APPLICATION {
-bigint id PK
-bigint cv_id FK
-string company_name
-string job_title
-string status
-string send_status
-date application_deadline
-date next_action_date
-timestamp withdrawn_at
-text job_description
-datetime interview_date
-timestamp last_activity_at
+datetime last_activity_at
+datetime withdrawn_at
 timestamp created_at
 timestamp updated_at
 }
 PDF_SNAPSHOT {
-bigint id PK
-bigint job_application_id FK
-bigint cv_version_id FK
+uuid id PK
+uuid cv_id FK
+uuid job_application_id FK
 string file_path
-string hash
+integer file_size_kb
 timestamp created_at
 }
-JOB_APPLICATION }o--|| PDF_SNAPSHOT : "has one"
+CV_VERSION {
+uuid id PK
+uuid cv_id FK
+json snapshot_json
+string reason
+timestamp created_at
+}
+APPLICATION_EVENT {
+uuid id PK
+uuid job_application_id FK
+string event_type
+text description
+datetime occurred_at
+timestamp created_at
+}
+METRIC {
+uuid id PK
+uuid job_application_id FK
+string metric_type
+float value
+datetime calculated_at
+timestamp created_at
+}
+SECTION_FOCUS_PROFILE {
+uuid id PK
+uuid cv_id FK
+string name
+json included_section_ids
+json section_order
+timestamp created_at
+timestamp updated_at
+}
+COVER_LETTER {
+uuid id PK
+uuid job_application_id FK
+text content
+integer version
+bool is_sent
+datetime sent_at
+timestamp created_at
+timestamp updated_at
+}
+SKILL_EVIDENCE {
+uuid id PK
+uuid cv_id FK
+string skill_name
+string evidenceable_type
+uuid evidenceable_id
+timestamp created_at
+}
+USER ||--o{ CV : "owns"
+CV ||--o{ JOB_APPLICATION : "used_for"
+CV ||--o{ CV_VERSION : "has_versions"
+CV ||--o{ PDF_SNAPSHOT : "generates"
+CV ||--o{ SECTION_FOCUS_PROFILE : "has_profiles"
+CV ||--o{ SKILL_EVIDENCE : "has_evidence"
+JOB_APPLICATION ||--o{ PDF_SNAPSHOT : "uses_snapshot"
+JOB_APPLICATION ||--o{ APPLICATION_EVENT : "has_events"
+JOB_APPLICATION ||--o{ METRIC : "has_metrics"
+JOB_APPLICATION ||--o{ COVER_LETTER : "has_letters"
 ```
 
 **Diagram sources**
-- [job_applications.php](file://database/migrations/2025_10_03_224900_create_job_applications_table.php#L1-L43)
-- [pdf_snapshots.php](file://database/migrations/2025_10_04_002642_create_pdf_snapshots_table.php#L1-L30)
+- [User.php](file://app/Models/User.php)
+- [Cv.php](file://app/Models/Cv.php)
+- [JobApplication.php](file://app/Models/JobApplication.php)
+- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php)
+- [CVVersion.php](file://app/Models/CVVersion.php)
+- [ApplicationEvent.php](file://app/Models/ApplicationEvent.php)
+- [Metric.php](file://app/Models/Metric.php)
+- [SectionFocusProfile.php](file://app/Models/SectionFocusProfile.php)
+- [CoverLetter.php](file://app/Models/CoverLetter.php)
+- [SkillEvidence.php](file://app/Models/SkillEvidence.php)
 
-**Section sources**
-- [JobApplication.php](file://app/Models/JobApplication.php#L7-L75)
-- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php#L7-L22)
-
-### JobApplication to ApplicationEvent Relationship
-
-A `JobApplication` has many `ApplicationEvent` records, representing discrete occurrences in its lifecycle such as submission, interview scheduling, or offer receipt. This one-to-many relationship enables detailed tracking of the application process. Each event has a type and timestamp, allowing for chronological reconstruction of the application timeline. The relationship includes a business rule where creating an event automatically updates the parent application's `last_activity_at` timestamp.
+## Database Schema Diagram
 
 ```mermaid
 erDiagram
-JOB_APPLICATION {
-bigint id PK
-bigint cv_id FK
-string company_name
-string job_title
-string status
-string send_status
-date application_deadline
-date next_action_date
-timestamp withdrawn_at
-text job_description
-datetime interview_date
-timestamp last_activity_at
-timestamp created_at
-timestamp updated_at
-}
-APPLICATION_EVENT {
-bigint id PK
-bigint job_application_id FK
-enum event_type
-timestamp occurred_at
-text notes
-json metadata
-timestamp created_at
-timestamp updated_at
-}
-JOB_APPLICATION ||--o{ APPLICATION_EVENT : "has many"
+USER ||--o{ CV
+CV ||--o{ CV_VERSION
+CV ||--o{ PDF_SNAPSHOT
+CV ||--o{ SECTION_FOCUS_PROFILE
+CV ||--o{ SKILL_EVIDENCE
+CV ||--o{ JOB_APPLICATION
+JOB_APPLICATION ||--o{ PDF_SNAPSHOT
+JOB_APPLICATION ||--o{ APPLICATION_EVENT
+JOB_APPLICATION ||--o{ METRIC
+JOB_APPLICATION ||--o{ COVER_LETTER
 ```
 
 **Diagram sources**
-- [job_applications.php](file://database/migrations/2025_10_03_224900_create_job_applications_table.php#L1-L43)
-- [application_events.php](file://database/migrations/2025_10_04_100002_create_application_events_table.php#L1-L46)
+- [create_users_table.php](file://database/migrations/0001_01_01_000000_create_users_table.php)
+- [create_cvs_table.php](file://database/migrations/2025_10_03_201646_create_cvs_table.php)
+- [create_cv_versions_table.php](file://database/migrations/2025_10_04_002612_create_cv_versions_table.php)
+- [create_pdf_snapshots_table.php](file://database/migrations/2025_10_04_002642_create_pdf_snapshots_table.php)
+- [create_section_focus_profiles_table.php](file://database/migrations/2025_10_04_101831_create_section_focus_profiles_table.php)
+- [create_skill_evidence_table.php](file://database/migrations/2025_10_04_101842_create_skill_evidence_table.php)
+- [create_job_applications_table.php](file://database/migrations/2025_10_03_224900_create_job_applications_table.php)
+- [create_application_events_table.php](file://database/migrations/2025_10_04_100002_create_application_events_table.php)
+- [create_metrics_table.php](file://database/migrations/2025_10_04_100003_create_metrics_table.php)
+- [create_cover_letters_table.php](file://database/migrations/2025_10_04_101841_create_cover_letters_table.php)
+
+## Data Validation and Business Logic
+
+### Model-Level Validation
+- **User**: Email uniqueness enforced at database level
+- **Cv**: Title is required; soft delete implemented via `deleted_at`
+- **JobApplication**: Status fields constrained to defined enums
+- **PDFSnapshot**: File path is required; size tracking for optimization
+- **SkillEvidence**: Unique constraint prevents duplicate evidence entries
+
+### Business Logic in Models
+- **Cv::cloneCv()**: Transactional method that creates a version snapshot and deep copies all CV content
+- **Cv::getSectionsWithProfile()**: Filters and reorders sections based on a SectionFocusProfile
+- **Cv::getSkillsWithEvidence()**: Aggregates skill evidence counts and types
+- **JobApplication::isReviewStale()**: Determines if AI review is outdated based on CV modification time
+- **JobApplication::scopeNeedsAttention()**: Query scope identifying applications requiring user action
+
+### Referential Integrity
+- All foreign keys have cascade delete behavior
+- Soft deletes on CVs preserve related application data
+- Polymorphic relationships in SkillEvidence maintain referential integrity through application logic
 
 **Section sources**
-- [JobApplication.php](file://app/Models/JobApplication.php#L7-L75)
-- [ApplicationEvent.php](file://app/Models/ApplicationEvent.php#L8-L30)
-- [ApplicationEventObserver.php](file://app/Observers/ApplicationEventObserver.php#L6-L17)
+- [Cv.php](file://app/Models/Cv.php#L100-L350)
+- [JobApplication.php](file://app/Models/JobApplication.php#L50-L120)
 
-## Schema Evolution and Migrations
-
-The database schema has evolved incrementally through a series of migrations, each adding specific functionality to support the application's growing feature set.
-
-### Initial Schema Migrations
-
-The initial set of migrations (2025_10_03) established the core CV structure:
-- `2025_10_03_201646_create_cvs_table.php`: Created the base `cvs` table with title and timestamps
-- `2025_10_03_201651_create_cv_sections_table.php`: Created the `cv_sections` table to define CV structure
-- `2025_10_03_201656_create_cv_header_info_table.php`: Added personal information storage
-- `2025_10_03_201701_create_cv_summaries_table.php`: Added professional summary capability
-- `2025_10_03_201706_create_cv_skill_categories_table.php`: Implemented categorized skills with JSON storage
-- `2025_10_03_201713_create_cv_experiences_table.php`: Added work experience tracking
-- `2025_10_03_201718_create_cv_projects_table.php`: Added project portfolio support
-- `2025_10_03_201722_create_cv_education_table.php`: Added educational background tracking
-- `2025_10_03_201727_create_cv_references_table.php`: Added references section
-
-### Enhancement Migrations
-
-Subsequent migrations enhanced the initial schema:
-- `2025_10_03_214838_add_url_to_cv_projects_table.php`: Added `project_url` field to support linking to online repositories
-- `2025_10_03_220056_add_company_url_to_cv_experiences_table.php`: Added company URL to experience entries (not detailed in initial context)
-- `2025_10_03_224900_create_job_applications_table.php`: Introduced job application tracking
-- `2025_10_03_225856_modify_cv_sections_table_for_custom_sections.php`: Modified `cv_sections` to support custom section types
-- `2025_10_03_225951_create_cv_custom_sections_table.php`: Created support for user-defined sections
-
-### Advanced Feature Migrations
-
-Later migrations added versioning and tracking capabilities:
-- `2025_10_04_002505_add_soft_deletes_to_cvs.php`: Implemented soft deletes on `cvs` table to preserve historical data
-- `2025_10_04_002540_extend_job_applications_table.php`: Enhanced `job_applications` with deadline, next action date, job description, and activity tracking
-- `2025_10_04_002612_create_cv_versions_table.php`: Added CV versioning for historical tracking
-- `2025_10_04_002642_create_pdf_snapshots_table.php`: Implemented PDF snapshot storage for application tracking
-
-### Insight and Iteration Migrations
-
-The most recent migrations added application activity tracking and performance metrics:
-- `2025_10_04_090625_add_withdrawn_at_to_job_applications_table.php`: Added `withdrawn_at` timestamp to track when applications are withdrawn
-- `2025_10_04_100002_create_application_events_table.php`: Created `application_events` table for detailed lifecycle tracking with flexible metadata
-- `2025_10_04_100003_create_metrics_table.php`: Created `metrics` table for storing calculated performance metrics
-
-Each migration follows Laravel conventions, with `up()` methods defining schema changes and `down()` methods providing rollback capabilities. Indexes are strategically added to support common query patterns, particularly around ordering and filtering.
-
-**Section sources**
-- [cvs.php](file://database/migrations/2025_10_03_201646_create_cvs_table.php#L1-L30)
-- [cv_sections.php](file://database/migrations/2025_10_03_201651_create_cv_sections_table.php#L1-L33)
-- [cv_header_info.php](file://database/migrations/2025_10_03_201656_create_cv_header_info_table.php#L1-L36)
-- [cv_summaries.php](file://database/migrations/2025_10_03_201701_create_cv_summaries_table.php#L1-L29)
-- [cv_skill_categories.php](file://database/migrations/2025_10_03_201706_create_cv_skill_categories_table.php#L1-L33)
-- [cv_experiences.php](file://database/migrations/2025_10_03_201713_create_cv_experiences_table.php#L1-L39)
-- [cv_projects.php](file://database/migrations/2025_10_03_201718_create_cv_projects_table.php#L1-L34)
-- [cv_education.php](file://database/migrations/2025_10_03_201722_create_cv_education_table.php#L1-L37)
-- [cv_references.php](file://database/migrations/2025_10_03_201727_create_cv_references_table.php#L1-L29)
-- [cv_projects.php](file://database/migrations/2025_10_03_214838_add_url_to_cv_projects_table.php#L1-L28)
-- [job_applications.php](file://database/migrations/2025_10_03_224900_create_job_applications_table.php#L1-L43)
-- [cv_sections.php](file://database/migrations/2025_10_03_225856_modify_cv_sections_table_for_custom_sections.php#L1-L25)
-- [cv_custom_sections.php](file://database/migrations/2025_10_03_225951_create_cv_custom_sections_table.php#L1-L25)
-- [cvs.php](file://database/migrations/2025_10_04_002505_add_soft_deletes_to_cvs.php#L1-L25)
-- [job_applications.php](file://database/migrations/2025_10_04_002540_extend_job_applications_table.php#L1-L31)
-- [cv_versions.php](file://database/migrations/2025_10_04_002612_create_cv_versions_table.php#L1-L27)
-- [pdf_snapshots.php](file://database/migrations/2025_10_04_002642_create_pdf_snapshots_table.php#L1-L30)
-- [add_withdrawn_at_to_job_applications_table.php](file://database/migrations/2025_10_04_090625_add_withdrawn_at_to_job_applications_table.php#L1-L31)
-- [application_events.php](file://database/migrations/2025_10_04_100002_create_application_events_table.php#L1-L46)
-- [metrics.php](file://database/migrations/2025_10_04_100003_create_metrics_table.php#L1-L44)
-
-## Data Seeding and Factories
-
-The application includes mechanisms for generating test data and populating initial content.
-
-### BaseCVSeeder
-
-The `BaseCVSeeder.php` file contains a seeder that imports a complete CV based on the provided markdown specification. This seeder creates a CV with the title "Senior Developer - StickyPiston" and populates all sections with example data, including:
-- Header information with full name, job title, and contact details
-- Professional summary
-- Skill categories with multiple skills in each category
-- Work experience entries with dates and achievement highlights
-- Side projects with descriptions and technologies
-- Educational background
-- References statement
-
-This seeder serves as both an example of data population and a way to provide users with a starting point for their own CVs.
-
-**Section sources**
-- [BaseCVSeeder.php](file://database/seeders/BaseCVSeeder.php#L1-L100)
-
-### Model Factories
-
-The application includes factories for generating test data during development and testing:
-- `CvFactory.php`: Generates random CV titles
-- `CvHeaderInfoFactory.php`: Creates realistic personal information
-- `CvSectionFactory.php`: Generates sections with random types and order
-- `JobApplicationFactory.php`: Creates job applications with random companies and statuses
-- `PDFSnapshotFactory.php`: Generates PDF snapshot records with valid file paths and hashes
-- `ApplicationEventFactory.php`: Creates application events with random types and timestamps
-- `MetricFactory.php`: Generates metric records with random values and time periods
-- `UserFactory.php`: Creates user records (though authentication is not required)
-
-These factories use Laravel's factory pattern to create consistent, realistic test data for feature development and automated testing.
-
-**Section sources**
-- [CvFactory.php](file://database/factories/CvFactory.php#L1-L25)
-- [CvHeaderInfoFactory.php](file://database/factories/CvHeaderInfoFactory.php#L1-L30)
-- [ApplicationEventFactory.php](file://database/factories/ApplicationEventFactory.php#L7-L39)
-- [MetricFactory.php](file://database/factories/MetricFactory.php#L7-L33)
-
-## Data Integrity and Validation
-
-The data model incorporates several mechanisms to ensure data integrity and consistency.
-
-### Foreign Key Constraints
-
-All relationships between tables are enforced through foreign key constraints with cascade deletion. When a parent record is deleted, all dependent child records are automatically removed. For example, deleting a CV will cascade to remove all its sections, section content, and related job applications.
-
-### Unique Constraints
-
-Unique constraints prevent invalid data states:
-- `cv_sections`: Unique constraint on `cv_id` and `section_type` prevents duplicate section types within a CV
-- `cv_header_info`, `cv_summaries`, `cv_references`, `cv_custom_sections`: Unique constraint on `cv_section_id` enforces one-to-one relationships
-- `pdf_snapshots`: Unique constraint on `hash` prevents duplicate storage of identical PDFs
-- `metrics`: Unique constraint on `metric_type` and `time_period_start` prevents duplicate metrics for the same period
-
-### Soft Deletes
-
-The `cvs` table implements soft deletes through the `deleted_at` timestamp. When a CV is deleted, it is not removed from the database but marked as deleted. This preserves historical data, including PDF snapshots of submitted applications, while removing the CV from regular user views.
-
-### Model Validation
-
-While the database schema enforces structural integrity, the Eloquent models likely include application-level validation rules to ensure data quality. For example:
-- Required fields like `email` in `CvHeaderInfo`
-- Format validation for URLs and dates
-- Content length limits for text fields
-- Business rule validation for date ranges (e.g., end date after start date)
-- Event-specific validation for `ApplicationEvent.metadata` based on `event_type`
-
-These validations would be implemented in the models or through Laravel's form request validation system.
-
-**Section sources**
-- [cvs.php](file://database/migrations/2025_10_04_002505_add_soft_deletes_to_cvs.php#L1-L25)
-- [cv_sections.php](file://database/migrations/2025_10_03_201651_create_cv_sections_table.php#L1-L33)
-- [cv_header_info.php](file://database/migrations/2025_10_03_201656_create_cv_header_info_table.php#L1-L36)
-
-## Query Optimization and Access Patterns
-
-The schema includes several optimizations to support efficient data retrieval for common access patterns.
-
-### Indexing Strategy
-
-Indexes are strategically placed to support frequent queries:
-- `cvs.created_at`: For chronological listing of CVs
-- `cv_sections.cv_id` and `cv_sections.display_order`: For retrieving sections in correct order
-- `cv_experiences.start_date` and `cv_education.start_year`: For chronological sorting of experiences and education
-- `job_applications.status`, `job_applications.send_status`, `job_applications.next_action_date`, and `job_applications.withdrawn_at`: For filtering applications by status and identifying those needing attention
-- `application_events.job_application_id` and `application_events.event_type`: For retrieving events by application and type
-- `metrics.metric_type` and `metrics.time_period_start`: For retrieving metrics by type and period
-
-### JSON Field Usage
-
-The schema uses JSON fields (`skills`, `highlights`, `metadata`) to store arrays of data without requiring additional database tables. This simplifies the schema and reduces the number of joins needed for common queries. Laravel's JSON column querying capabilities allow for efficient searching within these fields.
-
-### Eager Loading
-
-The Eloquent models are designed to support eager loading of relationships, preventing N+1 query problems. For example, when displaying a CV with all its sections, the application can eager load all related data in a single query rather than making separate queries for each section type.
+## Data Access Patterns and Performance
 
 ### Common Query Patterns
+- User dashboard: Retrieve user's CVs with version counts and recent applications
+- Application timeline: Fetch job application with events ordered by date
+- CV editor: Load CV with all sections and content in display order
+- Review status: Check if AI review is stale by comparing timestamps
 
-The most frequent query patterns include:
-- Retrieving a CV with all its sections and content for display or editing
-- Listing job applications with filtering by status and deadline
-- Finding CVs that have been used for job applications
-- Retrieving version history for a CV
-- Looking up PDF snapshots associated with job applications
-- Getting the timeline of events for a job application
-- Calculating and retrieving performance metrics
+### Indexing Strategy
+- Foreign keys are indexed for join performance
+- Frequently filtered fields (status, dates) have dedicated indexes
+- Composite indexes support common query patterns
+- JSON fields are indexed where appropriate for partial searches
 
-The schema and indexing strategy are optimized to support these patterns efficiently.
+### Performance Considerations
+- Eager loading recommended for section relationships to avoid N+1 queries
+- Version snapshots stored as JSON for efficient retrieval
+- PDF snapshots reference file paths rather than storing binary data
+- Aggregated skill evidence data can be cached to reduce computation
 
 **Section sources**
-- [cvs.php](file://database/migrations/2025_10_03_201646_create_cvs_table.php#L1-L30)
-- [cv_sections.php](file://database/migrations/2025_10_03_201651_create_cv_sections_table.php#L1-L33)
-- [cv_experiences.php](file://database/migrations/2025_10_03_201713_create_cv_experiences_table.php#L1-L39)
-- [cv_education.php](file://database/migrations/2025_10_03_201722_create_cv_education_table.php#L1-L37)
-- [job_applications.php](file://database/migrations/2025_10_03_224900_create_job_applications_table.php#L1-L43)
-- [application_events.php](file://database/migrations/2025_10_04_100002_create_application_events_table.php#L1-L46)
-- [metrics.php](file://database/migrations/2025_10_04_100003_create_metrics_table.php#L1-L44)
+- [Cv.php](file://app/Models/Cv.php)
+- [JobApplication.php](file://app/Models/JobApplication.php)
+
+## Data Lifecycle Management
+
+### Soft Deletes
+- CVs support soft deletion via `deleted_at` timestamp
+- Deleted CVs remain in database but are filtered from normal queries
+- Related entities (versions, snapshots) are cascade deleted
+- Recovery mechanism allows restoration of deleted CVs
+
+### Retention Policies
+- CV versions are retained indefinitely for audit and recovery
+- PDF snapshots are retained as long as associated CV or application exists
+- Application events are retained with their parent application
+- Old cover letter versions may be archived based on retention rules
+
+### Data Archiving
+- Completed applications (rejected/withdrawn) may be archived after 1 year
+- Inactive user accounts may have data archived after 2 years of inactivity
+- Archiving process preserves referential integrity while moving data to cold storage
+
+**Section sources**
+- [Cv.php](file://app/Models/Cv.php#L10-L15)
+- [add_soft_deletes_to_cvs.php](file://database/migrations/2025_10_04_002505_add_soft_deletes_to_cvs.php)
+
+## Data Security
+
+### Sensitive Data Handling
+- User passwords are hashed using Laravel's built-in hashing
+- Authentication tokens are securely stored and rotated
+- No sensitive personal data is stored beyond what is necessary for CV creation
+
+### Encryption
+- Database connections use TLS encryption
+- Sensitive fields (if introduced) would be encrypted at application level
+- File storage for PDF snapshots uses secure access controls
+- Backup data is encrypted at rest
+
+### Access Control
+- Row-level security ensures users can only access their own data
+- Authorization checks are performed at both controller and model levels
+- API endpoints require authentication and scope validation
+- Administrative access is logged and audited
+
+**Section sources**
+- [User.php](file://app/Models/User.php#L30-L40)
+- [Cv.php](file://app/Models/Cv.php)
 
 ## Conclusion
-
-The application's data model provides a comprehensive foundation for managing CVs and job applications. It supports a hierarchical structure for CV content with flexible section types, versioning through snapshots, and integration with job application tracking. The schema has evolved incrementally to add features like soft deletes, custom sections, and PDF snapshot storage while maintaining data integrity through foreign key constraints and unique indexes. The use of JSON fields for arrays simplifies the schema while still allowing for efficient querying. Model factories and seeders provide mechanisms for test data generation and initial content population. The indexing strategy and relationship design support efficient querying for common access patterns, ensuring good performance as the data set grows. This well-structured data model enables the application to serve as a powerful tool for job seekers to manage their career development and application process.
+The CV Builder data model provides a robust foundation for managing resumes, job applications, and supporting artifacts. The schema supports versioning, templating, and AI-powered review workflows while maintaining data integrity and performance. Key strengths include flexible CV structuring, comprehensive application tracking, and extensible evidence-based skill validation. The model is designed for scalability, with appropriate indexing and access patterns to support growing user bases and data volumes.

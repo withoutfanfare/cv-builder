@@ -2,33 +2,21 @@
 
 <cite>
 **Referenced Files in This Document**   
+- [CvReviewService.php](file://app/Services/CvReviewService.php)
 - [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php)
 - [KeywordCoverageService.php](file://app/Services/KeywordCoverageService.php)
-- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php)
-- [ApplicationEventObserver.php](file://app/Observers/ApplicationEventObserver.php) - *Updated in recent commit*
-- [MetricsCalculationService.php](file://app/Services/MetricsCalculationService.php) - *Updated in recent commit*
-- [AdminPanelProvider.php](file://app/Providers/Filament/AdminPanelProvider.php)
-- [AppServiceProvider.php](file://app/Providers/AppServiceProvider.php)
-- [CvPdfController.php](file://app/Http/Controllers/CvPdfController.php)
-- [CVVersionResource.php](file://app/Filament/Resources/CVVersions/CVVersionResource.php) - *Updated in recent commit*
-- [CvResource.php](file://app/Filament/Resources/Cvs/CvResource.php) - *Updated in recent commit*
+- [MetricsCalculationService.php](file://app/Services/MetricsCalculationService.php)
+- [Cv.php](file://app/Models/Cv.php)
+- [JobApplication.php](file://app/Models/JobApplication.php)
+- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php)
+- [PdfTemplate.php](file://app/Models/PdfTemplate.php)
+- [CvResource.php](file://app/Filament/Resources/Cvs/CvResource.php)
 - [JobApplicationResource.php](file://app/Filament/Resources/JobApplications/JobApplicationResource.php)
-- [PDFSnapshotResource.php](file://app/Filament/Resources/PDFSnapshots/PDFSnapshotResource.php)
-- [ApplicationEventResource.php](file://app/Filament/Resources/JobApplications/RelationManagers/EventsRelationManager.php)
-- [web.php](file://routes/web.php)
-- [console.php](file://routes/console.php)
-- [filesystems.php](file://config/filesystems.php)
-- [cache.php](file://config/cache.php)
+- [CvPdfController.php](file://app/Http/Controllers/CvPdfController.php)
+- [config/services.php](file://config/services.php)
+- [config/filesystems.php](file://config/filesystems.php)
+- [pdf.blade.php](file://resources/views/cv/pdf.blade.php)
 </cite>
-
-## Update Summary
-**Changes Made**   
-- Updated ApplicationEventObserver documentation to reflect use of saveQuietly() to prevent infinite loops
-- Updated MetricsCalculationService documentation to reflect division by zero prevention in metrics calculations
-- Updated Filament resource navigation icons and labels for CV and CV Versions resources
-- Added details about UI/UX improvements in Filament navigation
-- Updated dependency analysis to reflect observer pattern implementation details
-- Enhanced troubleshooting guide with new observer-specific issues
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -42,10 +30,10 @@
 9. [Conclusion](#conclusion)
 
 ## Introduction
-The CV Builder application is a Laravel MVC application designed to help users manage CVs and job applications efficiently. It features a service layer for business logic, a Filament admin panel for CRUD operations, and implements several architectural patterns including Service, Observer, Repository, and MVC. The system supports PDF snapshot creation, keyword coverage analysis, CV versioning, and now includes comprehensive activity tracking and metrics calculation. This document outlines the high-level design, component interactions, service container configuration, infrastructure considerations, and extensibility points.
+The cv-builder application is a Laravel-based productivity tool designed to streamline the job application process through structured CV management, application tracking, and AI-powered optimization. The system follows the MVC pattern enhanced with a dedicated service layer for business logic separation and leverages Filament as an admin interface for CRUD operations. Key architectural patterns include the Service Pattern for encapsulating business logic, the Observer Pattern for model lifecycle events, and the Repository Pattern via Eloquent ORM. The application integrates with external services like OpenAI for CV analysis and uses Spatie Laravel-PDF for document generation. This documentation provides a comprehensive overview of the system's architecture, component interactions, data flow, and design decisions.
 
 ## Project Structure
-The application follows a standard Laravel directory structure with additional Filament-specific directories for resources and widgets. The core components are organized into models, services, observers, and controllers. Filament resources provide the admin interface for managing CVs, job applications, and related entities. Configuration files define storage, caching, and other infrastructure settings.
+The application follows a standard Laravel directory structure with domain-specific organization. The `app` directory contains core components including Models, Services, Observers, and Filament Resources. Models in `app/Models` represent database entities with Eloquent relationships. Services in `app/Services` encapsulate business logic such as CV review, PDF generation, and metrics calculation. The `app/Filament/Resources` directory contains Filament resource classes that define admin interface behavior for each model. The `database/migrations` directory contains schema definitions with incremental versioning. The `resources/views` directory contains Blade templates for PDF rendering. The `app/Http/Controllers` directory contains minimal controller logic, with most functionality delegated to services. The `config` directory contains configuration for services including OpenAI API credentials and filesystem settings.
 
 ```mermaid
 graph TD
@@ -53,447 +41,366 @@ A[app] --> B[Models]
 A --> C[Services]
 A --> D[Observers]
 A --> E[Http/Controllers]
-A --> F[Providers]
-A --> G[Filament/Resources]
-A --> H[Filament/Widgets]
-I[config] --> J[filesystems.php]
-I --> K[cache.php]
-L[database] --> M[migrations]
-N[routes] --> O[web.php]
-N --> P[console.php]
+A --> F[Filament/Resources]
+G[database] --> H[migrations]
+G --> I[seeders]
+J[resources] --> K[views]
+K --> L[cv]
+L --> M[pdf.blade.php]
+N[config] --> O[services.php]
+N --> P[filesystems.php]
 ```
 
 **Diagram sources**
 - [app](file://app)
-- [config](file://config)
 - [database](file://database)
-- [routes](file://routes)
+- [resources](file://resources)
+- [config](file://config)
 
 **Section sources**
 - [Project Structure](file://)
 
 ## Core Components
-The application's core functionality revolves around managing CVs and job applications. Key components include service classes for PDF snapshot creation, keyword coverage analysis, and metrics calculation, observer classes for automatic behavior, and Filament resources for admin interface functionality. The system uses Eloquent models as repositories for data access and implements MVC patterns for request handling.
+The application's core components include the CV management system, job application tracking, AI-powered CV review, PDF generation, and analytics. The CV model represents a resume with sections for header information, summary, skills, experience, projects, education, and references. The JobApplication model tracks the application lifecycle with statuses, deadlines, and events. The CvReviewService provides AI-powered analysis of CVs against job descriptions using the OpenAI API. The PdfSnapshotService generates and stores PDF versions of CVs when applications are sent. The MetricsCalculationService computes performance metrics such as response rates and interview conversion rates. These components work together to provide a comprehensive job application management system.
 
 **Section sources**
+- [Cv.php](file://app/Models/Cv.php)
+- [JobApplication.php](file://app/Models/JobApplication.php)
+- [CvReviewService.php](file://app/Services/CvReviewService.php)
 - [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php)
-- [KeywordCoverageService.php](file://app/Services/KeywordCoverageService.php)
-- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php)
-- [ApplicationEventObserver.php](file://app/Observers/ApplicationEventObserver.php)
 - [MetricsCalculationService.php](file://app/Services/MetricsCalculationService.php)
-- [CvPdfController.php](file://app/Http/Controllers/CvPdfController.php)
 
 ## Architecture Overview
-The CV Builder application follows a layered architecture with clear separation of concerns. The Filament admin panel provides the user interface, controllers handle HTTP requests, services encapsulate business logic, and Eloquent models manage data persistence. The system uses the Service pattern for reusable business logic, the Observer pattern for event-driven behavior, and the Repository pattern through Eloquent models.
+The application follows a layered architecture with clear separation of concerns. At the top layer, Filament provides an admin interface for managing CVs and job applications. Controllers handle HTTP requests but delegate business logic to service classes. The service layer contains the core business logic for CV review, PDF generation, and metrics calculation. Models represent database entities and their relationships using Eloquent ORM. The Observer Pattern is used to trigger actions when model events occur, such as creating a PDF snapshot when a job application is sent. External services like OpenAI are accessed through service classes that handle API communication and error handling. The architecture promotes maintainability by isolating business logic from presentation and persistence concerns.
 
 ```mermaid
 graph TD
-A[Filament Admin Panel] --> B[Controllers]
-B --> C[Services]
-C --> D[Eloquent Models]
+A[Filament Admin] --> B[Controllers]
+B --> C[Service Layer]
+C --> D[Models]
 D --> E[Database]
-F[Observers] --> D
-G[Service Container] --> C
-G --> F
-H[Console Commands] --> I[MetricsCalculationService]
-I --> J[Metrics]
+C --> F[External Services]
+F --> G[OpenAI API]
+F --> H[Spatie Laravel-PDF]
+I[Observers] --> C
+I --> D
 ```
 
 **Diagram sources**
-- [AdminPanelProvider.php](file://app/Providers/Filament/AdminPanelProvider.php)
-- [AppServiceProvider.php](file://app/Providers/AppServiceProvider.php)
-- [CvPdfController.php](file://app/Http/Controllers/CvPdfController.php)
+- [CvReviewService.php](file://app/Services/CvReviewService.php)
 - [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php)
-- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php)
-- [ApplicationEventObserver.php](file://app/Observers/ApplicationEventObserver.php)
 - [MetricsCalculationService.php](file://app/Services/MetricsCalculationService.php)
-- [console.php](file://routes/console.php)
+- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php)
+- [Cv.php](file://app/Models/Cv.php)
 
 ## Detailed Component Analysis
 
-### Service Layer Analysis
-The service layer contains business logic that is independent of the HTTP request cycle. Services are injected with dependencies through the Laravel service container and can be reused across different parts of the application.
-
-#### PdfSnapshotService
-This service creates PDF snapshots of CVs when job applications are marked as sent. It generates a PDF, calculates a SHA-256 hash, stores the file, and creates a database record with metadata.
+### CV Management System
+The CV management system allows users to create multiple CVs with customizable sections. Each CV consists of a header, summary, skills, experience, projects, education, and references. Sections can be reordered and customized through Filament's relation managers. The system supports CV cloning and versioning, allowing users to create variants for different job applications. The CV model uses Eloquent relationships to connect with its sections and related data.
 
 ```mermaid
 classDiagram
-class PdfSnapshotService {
-+create(JobApplication) : PDFSnapshot
-}
-class JobApplication {
-+cv : Cv
-+send_status : string
-+pdfSnapshot : PDFSnapshot
-}
-class PDFSnapshot {
-+job_application_id : int
-+cv_id : int
-+file_path : string
-+hash : string
-+created_at : datetime
-}
 class Cv {
-+load(relationships) : Cv
++string title
++belongsTo pdfTemplate
++hasOne headerInfo
++hasMany sections
++hasManyThrough skillCategories
++hasManyThrough experiences
++hasManyThrough projects
++hasManyThrough education
++hasOne reference
++cloneCv(reason) Cv
++getSectionsWithProfile(profileId) Collection
 }
-PdfSnapshotService --> JobApplication : "uses"
-PdfSnapshotService --> PDFSnapshot : "creates"
-PdfSnapshotService --> Cv : "loads"
+class CvSection {
++string section_type
++int display_order
++belongsTo cv
++hasOne summary
++hasMany skillCategories
++hasMany experiences
++hasMany projects
++hasMany education
++hasOne customSection
+}
+class CvHeaderInfo {
++string full_name
++string job_title
++string email
++belongsTo cvSection
+}
+class CvSummary {
++text content
++belongsTo cvSection
+}
+class CvSkillCategory {
++string category_name
++json skills
++int display_order
++belongsTo cvSection
+}
+class CvExperience {
++string job_title
++string company_name
++json highlights
++int display_order
++belongsTo cvSection
+}
+class CvProject {
++string project_name
++text description
++text technologies
++int display_order
++belongsTo cvSection
+}
+class CvEducation {
++string degree
++string institution
++int start_year
++int end_year
++int display_order
++belongsTo cvSection
+}
+class CvReference {
++text content
++belongsTo cvSection
+}
+Cv --> CvSection : "has many"
+Cv --> CvHeaderInfo : "has one"
+CvSection --> CvSummary : "has one"
+CvSection --> CvSkillCategory : "has many"
+CvSection --> CvExperience : "has many"
+CvSection --> CvProject : "has many"
+CvSection --> CvEducation : "has many"
+CvSection --> CvReference : "has one"
 ```
 
 **Diagram sources**
-- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php)
-- [JobApplication.php](file://app/Models/JobApplication.php)
-- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php)
-- [Cv.php](file://app/Models/Cv.php)
+- [Cv.php](file://app/Models/Cv.php#L15-L354)
+- [CvSection.php](file://app/Models/CvSection.php)
+- [CvHeaderInfo.php](file://app/Models/CvHeaderInfo.php)
+- [CvSummary.php](file://app/Models/CvSummary.php)
+- [CvSkillCategory.php](file://app/Models/CvSkillCategory.php)
+- [CvExperience.php](file://app/Models/CvExperience.php)
+- [CvProject.php](file://app/Models/CvProject.php)
+- [CvEducation.php](file://app/Models/CvEducation.php)
+- [CvReference.php](file://app/Models/CvReference.php)
 
-#### KeywordCoverageService
-This service analyzes job descriptions and CV content to calculate keyword coverage. It tokenizes text, removes stopwords, and compares keywords to identify gaps in the CV.
+**Section sources**
+- [Cv.php](file://app/Models/Cv.php#L15-L354)
 
-```mermaid
-classDiagram
-class KeywordCoverageService {
-+tokenize(string) : array
-+calculateCoverage(string, string) : array
-}
-KeywordCoverageService : STOPWORDS
-```
-
-**Diagram sources**
-- [KeywordCoverageService.php](file://app/Services/KeywordCoverageService.php)
-
-#### MetricsCalculationService
-This service calculates key performance metrics for job applications over specified time periods. It computes applications per week, response rate, interview conversion rate, offer rate, and median days to first response. The implementation includes safeguards against division by zero by using `max(1, ceil($days / 7))` for week calculation and checking `$totalActiveApplications > 0` before division operations.
+### Job Application Tracking
+The job application tracking system manages the application lifecycle from creation to outcome. Each job application is linked to a CV and contains details such as company information, job title, source, deadline, and status. The system tracks application events like submission, replies, interviews, and offers through the ApplicationEvent model. The Needs Attention feature highlights applications requiring action based on deadlines and status. The system supports cover letter management with template interpolation for dynamic content.
 
 ```mermaid
 classDiagram
-class MetricsCalculationService {
-+refreshAllMetrics(string) : void
-+calculateApplicationsPerWeek(string) : void
-+calculateResponseRate(string) : void
-+calculateInterviewConversionRate(string) : void
-+calculateOfferRate(string) : void
-+calculateMedianDaysToFirstResponse(string) : void
-}
-class Metric {
-+metric_type : string
-+value : float
-+time_period_start : date
-+time_period_end : date
-+last_refreshed_at : datetime
-}
 class JobApplication {
-+events : Collection
-+created_at : datetime
-+status : string
-+withdrawn_at : datetime
++string company_name
++string job_title
++string source
++date application_deadline
++date next_action_date
++text job_description
++string send_status
++string application_status
++array interview_dates
++datetime withdrawn_at
++array ai_review_data
++datetime ai_review_completed_at
++belongsTo cv
++hasOne pdfSnapshot
++hasMany events
++hasMany coverLetters
++isReviewStale() bool
++getReviewData() array
 }
-MetricsCalculationService --> Metric : "stores"
-MetricsCalculationService --> JobApplication : "queries"
-```
-
-**Diagram sources**
-- [MetricsCalculationService.php](file://app/Services/MetricsCalculationService.php)
-- [Metric.php](file://app/Models/Metric.php)
-- [JobApplication.php](file://app/Models/JobApplication.php)
-
-### Observer Pattern Implementation
-The observer pattern is used to automatically update timestamps and trigger business logic when models are modified.
-
-#### JobApplicationObserver
-This observer automatically updates timestamps and triggers PDF snapshot creation when job applications are modified.
-
-```mermaid
-sequenceDiagram
-participant Observer as JobApplicationObserver
-participant Model as JobApplication
-participant Service as PdfSnapshotService
-Model->>Observer : updating()
-Observer->>Model : Set last_activity_at = now()
-Model->>Observer : updated()
-Observer->>Model : wasChanged('send_status')
-alt send_status changed to 'sent'
-Observer->>Service : create(jobApplication)
-Service-->>Observer : PDFSnapshot
-Observer->>Observer : Log error if failed
-end
-```
-
-**Diagram sources**
-- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php)
-- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php)
-
-#### ApplicationEventObserver
-This observer automatically updates the parent job application's last activity timestamp when a new application event is created. The implementation uses `saveQuietly()` to prevent infinite loops that could occur if updating the job application triggered additional observer events.
-
-```mermaid
-sequenceDiagram
-participant Observer as ApplicationEventObserver
-participant Model as ApplicationEvent
-participant Parent as JobApplication
-Model->>Observer : created()
-Observer->>Model : Get occurred_at
-Observer->>Parent : Update last_activity_at using saveQuietly()
-Parent-->>Observer : Success
-```
-
-**Diagram sources**
-- [ApplicationEventObserver.php](file://app/Observers/ApplicationEventObserver.php)
-- [ApplicationEvent.php](file://app/Models/ApplicationEvent.php)
-- [JobApplication.php](file://app/Models/JobApplication.php)
-
-### Application Event System
-The ApplicationEvent model tracks discrete occurrences in the job application lifecycle, providing a timeline of interactions with flexible metadata storage.
-
-#### ApplicationEvent Model
-The ApplicationEvent model represents specific events in the job application process with structured metadata.
-
-```mermaid
-classDiagram
 class ApplicationEvent {
-+job_application_id : int
-+event_type : string
-+occurred_at : datetime
-+notes : text
-+metadata : json
-+created_at : datetime
-+updated_at : datetime
++string event_type
++datetime occurred_at
++text notes
++json metadata
++belongsTo jobApplication
 }
-class JobApplication {
-+events : HasMany
+class CoverLetter {
++text body
++string tone
++int version
++boolean is_sent
++belongsTo jobApplication
 }
-ApplicationEvent --> JobApplication : "belongsTo"
+JobApplication --> ApplicationEvent : "has many"
+JobApplication --> CoverLetter : "has many"
+JobApplication --> PDFSnapshot : "has one"
+JobApplication --> Cv : "belongs to"
 ```
 
 **Diagram sources**
+- [JobApplication.php](file://app/Models/JobApplication.php#L15-L122)
 - [ApplicationEvent.php](file://app/Models/ApplicationEvent.php)
+- [CoverLetter.php](file://app/Models/CoverLetter.php)
+- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php)
+
+**Section sources**
+- [JobApplication.php](file://app/Models/JobApplication.php#L15-L122)
+
+### AI-Powered CV Review System
+The AI-powered CV review system analyzes CVs against job descriptions to provide optimization suggestions. The CvReviewService orchestrates the analysis process by extracting job requirements, comparing them with CV content, and generating actionable recommendations. The service uses the OpenAI API to perform natural language processing and returns structured JSON containing match scores, skill gaps, section recommendations, and language suggestions. The system includes safeguards for incomplete CVs and missing job descriptions through custom exceptions.
+
+```mermaid
+sequenceDiagram
+participant User as "User"
+participant Controller as "Controller"
+participant Service as "CvReviewService"
+participant OpenAI as "OpenAI API"
+User->>Controller : Request CV review
+Controller->>Service : analyzeForJob(cv, jobApplication)
+Service->>Service : Validate CV completeness
+Service->>Service : Validate job description
+Service->>Service : extractJobRequirements(jobDescription)
+Service->>OpenAI : Extract skills, competencies, keywords
+OpenAI-->>Service : Parsed job requirements
+Service->>Service : buildAnalysisPrompt(cvData, jobRequirements)
+Service->>OpenAI : Analyze CV against job description
+OpenAI-->>Service : JSON analysis results
+Service->>Service : validateReviewData()
+Service-->>Controller : Return review data
+Controller-->>User : Display review results
+```
+
+**Diagram sources**
+- [CvReviewService.php](file://app/Services/CvReviewService.php#L15-L225)
+- [OpenAiApiException.php](file://app/Exceptions/OpenAiApiException.php)
+- [IncompleteCvException.php](file://app/Exceptions/IncompleteCvException.php)
+- [MissingJobDescriptionException.php](file://app/Exceptions/MissingJobDescriptionException.php)
+
+**Section sources**
+- [CvReviewService.php](file://app/Services/CvReviewService.php#L15-L225)
+
+### PDF Generation System
+The PDF generation system creates snapshots of CVs when job applications are sent. The PdfSnapshotService handles the complete workflow including CV loading, PDF rendering, hash calculation, file storage, and database record creation. The service uses Spatie Laravel-PDF to generate PDFs from Blade templates, ensuring consistent styling. Each snapshot includes a SHA-256 hash for content integrity verification and is stored with a predictable naming convention. The system validates PDF size to prevent storage exhaustion.
+
+```mermaid
+flowchart TD
+A[Create PDF Snapshot] --> B{CV exists?}
+B --> |No| C[Throw Exception]
+B --> |Yes| D[Load CV with all sections]
+D --> E[Render PDF from blade template]
+E --> F[Extract binary content]
+F --> G[Validate size < 10MB]
+G --> |Too large| H[Throw Exception]
+G --> |Valid size| I[Calculate SHA-256 hash]
+I --> J[Define storage path]
+J --> K[Store file in local storage]
+K --> L[Create PDFSnapshot record]
+L --> M[Return snapshot model]
+C --> N[End]
+M --> N[End]
+```
+
+**Diagram sources**
+- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php#L9-L71)
+- [pdf.blade.php](file://resources/views/cv/pdf.blade.php)
+- [filesystems.php](file://config/filesystems.php)
+- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php)
+
+**Section sources**
+- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php#L9-L71)
+
+### Analytics and Metrics System
+The analytics system calculates key performance metrics for job applications. The MetricsCalculationService computes applications per week, response rate, interview conversion rate, offer rate, and median days to first response. The service runs on a daily schedule and stores results in the metrics table for dashboard display. Calculations exclude withdrawn applications to provide accurate performance metrics. The system includes safeguards against division by zero and handles edge cases gracefully.
+
+```mermaid
+flowchart TD
+Start([MetricsCalculationService]) --> RefreshAll["refreshAllMetrics(timePeriod)"]
+RefreshAll --> CalcApplicationsPerWeek["calculateApplicationsPerWeek()"]
+RefreshAll --> CalcResponseRate["calculateResponseRate()"]
+RefreshAll --> CalcInterviewConversion["calculateInterviewConversionRate()"]
+RefreshAll --> CalcOfferRate["calculateOfferRate()"]
+RefreshAll --> CalcMedianResponse["calculateMedianDaysToFirstResponse()"]
+CalcApplicationsPerWeek --> ParsePeriod["parsePeriod(timePeriod)"]
+ParsePeriod --> QueryApplications["JobApplication::whereBetween('created_at')"]
+QueryApplications --> CalculateWeeklyAvg["Calculate: total / (days/7)"]
+CalculateWeeklyAvg --> StoreMetric["storeMetric('applications_per_week', value)"]
+CalcResponseRate --> QueryActiveApps["JobApplication::whereNull('withdrawn_at')"]
+QueryActiveApps --> QueryRepliedApps["JobApplication::whereHas('events', reply_received)"]
+QueryRepliedApps --> CalculatePercentage["Calculate: (replied/active) * 100"]
+CalculatePercentage --> StoreMetric["storeMetric('response_rate', value)"]
+CalcInterviewConversion --> QueryActiveApps["JobApplication::whereNull('withdrawn_at')"]
+QueryActiveApps --> QueryInterviewedApps["JobApplication::whereHas('events', interview_scheduled)"]
+QueryInterviewedApps --> CalculatePercentage["Calculate: (interviewed/active) * 100"]
+CalculatePercentage --> StoreMetric["storeMetric('interview_conversion_rate', value)"]
+CalcOfferRate --> QueryActiveApps["JobApplication::whereNull('withdrawn_at')"]
+QueryActiveApps --> QueryOfferedApps["JobApplication::whereHas('events', offer_received)"]
+QueryOfferedApps --> CalculatePercentage["Calculate: (offered/active) * 100"]
+CalculatePercentage --> StoreMetric["storeMetric('offer_rate', value)"]
+CalcMedianResponse --> QueryRepliedApps["JobApplication::whereHas('events', reply_received)"]
+QueryRepliedApps --> CalculateResponseTime["Calculate: created_at to first reply diffInDays()"]
+CalculateResponseTime --> SortTimes["Sort response times"]
+SortTimes --> CalculateMedian["Calculate median value"]
+CalculateMedian --> StoreMetric["storeMetric('median_days_to_first_response', value)"]
+StoreMetric --> UpdateOrCreate["Metric::updateOrCreate()"]
+```
+
+**Diagram sources**
+- [MetricsCalculationService.php](file://app/Services/MetricsCalculationService.php#L7-L169)
+- [Metric.php](file://app/Models/Metric.php)
 - [JobApplication.php](file://app/Models/JobApplication.php)
 
-#### EventsRelationManager
-The EventsRelationManager provides a Filament interface for managing application events within the job application context.
-
-```mermaid
-classDiagram
-class EventsRelationManager {
-+form(Schema) : Schema
-+table(Table) : Table
-}
-class Schema {
-+components : array
-}
-class Table {
-+columns : array
-+actions : array
-}
-EventsRelationManager --> Schema
-EventsRelationManager --> Table
-```
-
-**Diagram sources**
-- [EventsRelationManager.php](file://app/Filament/Resources/JobApplications/RelationManagers/EventsRelationManager.php)
-
-### Metrics System
-The metrics system provides quantitative insights into job application performance through scheduled calculation and storage of key metrics.
-
-#### Metrics Calculation Flow
-The metrics calculation process is triggered by a console command and runs on a daily schedule.
-
-```mermaid
-sequenceDiagram
-participant Scheduler as Laravel Scheduler
-participant Command as metrics : refresh
-participant Service as MetricsCalculationService
-participant DB as Database
-Scheduler->>Command : daily()
-Command->>Service : refreshAllMetrics('30d')
-Service->>Service : calculateApplicationsPerWeek()
-Service->>Service : calculateResponseRate()
-Service->>Service : calculateInterviewConversionRate()
-Service->>Service : calculateOfferRate()
-Service->>Service : calculateMedianDaysToFirstResponse()
-Service->>DB : storeMetric() x5
-DB-->>Service : Success
-Service-->>Command : Success
-Command-->>Scheduler : Complete
-```
-
-**Diagram sources**
-- [console.php](file://routes/console.php)
-- [MetricsCalculationService.php](file://app/Services/MetricsCalculationService.php)
-- [Metric.php](file://app/Models/Metric.php)
-
-### Filament Resource System
-Filament resources abstract CRUD operations and provide a consistent admin interface. Each resource defines forms, tables, and pages for managing a specific model.
-
-#### CV Resource
-The CvResource manages CV entities with support for cloning and soft deletion. The navigation icon has been updated to Heroicon::OutlinedDocumentText for better clarity in the UI.
-
-```mermaid
-classDiagram
-class CvResource {
-+form(Schema) : Schema
-+table(Table) : Table
-+getPages() : array
-}
-class CvForm {
-+configure(Schema) : Schema
-}
-class CvsTable {
-+configure(Table) : Table
-}
-CvResource --> CvForm
-CvResource --> CvsTable
-```
-
-**Diagram sources**
-- [CvResource.php](file://app/Filament/Resources/Cvs/CvResource.php)
-- [CvForm.php](file://app/Filament/Resources/Cvs/Schemas/CvForm.php)
-- [CvsTable.php](file://app/Filament/Resources/Cvs/Tables/CvsTable.php)
-
-#### JobApplication Resource
-The JobApplicationResource manages job applications with extended functionality for tracking status and next actions.
-
-```mermaid
-classDiagram
-class JobApplicationResource {
-+form(Schema) : Schema
-+table(Table) : Table
-+getPages() : array
-}
-```
-
-**Diagram sources**
-- [JobApplicationResource.php](file://app/Filament/Resources/JobApplications/JobApplicationResource.php)
-
-#### PDFSnapshot Resource
-The PDFSnapshotResource provides read-only access to PDF snapshots with download and hash verification functionality.
-
-```mermaid
-classDiagram
-class PDFSnapshotResource {
-+form(Schema) : Schema
-+infolist(Schema) : Schema
-+table(Table) : Table
-+getPages() : array
-}
-```
-
-**Diagram sources**
-- [PDFSnapshotResource.php](file://app/Filament/Resources/PDFSnapshots/PDFSnapshotResource.php)
-
-#### CVVersion Resource
-The CVVersionResource manages immutable snapshots of CVs created when cloning. The navigation icon has been updated to Heroicon::OutlinedDocumentDuplicate for better clarity in the UI.
-
-```mermaid
-classDiagram
-class CVVersionResource {
-+form(Schema) : Schema
-+infolist(Schema) : Schema
-+table(Table) : Table
-+getPages() : array
-}
-```
-
-**Diagram sources**
-- [CVVersionResource.php](file://app/Filament/Resources/CVVersions/CVVersionResource.php)
-
-### Request Flow Analysis
-The application follows standard Laravel MVC patterns for handling requests, with additional Filament-specific routing for the admin panel.
-
-#### PDF Generation Request Flow
-When a user requests a PDF download, the request flows through the router to the controller, which orchestrates PDF generation.
-
-```mermaid
-sequenceDiagram
-participant Client as Browser
-participant Router as RouteServiceProvider
-participant Controller as CvPdfController
-participant Service as Spatie PDF
-participant View as Blade Template
-Client->>Router : GET /cv/{id}/pdf
-Router->>Controller : Route to download()
-Controller->>Controller : Load CV with relationships
-Controller->>Service : Generate PDF from view
-Service->>View : Render cv.show with CV data
-View-->>Service : HTML output
-Service-->>Controller : PDF object
-Controller-->>Client : PDF download
-```
-
-**Diagram sources**
-- [web.php](file://routes/web.php)
-- [CvPdfController.php](file://app/Http/Controllers/CvPdfController.php)
-- [cv.show.blade.php](file://resources/views/cv/show.blade.php)
+**Section sources**
+- [MetricsCalculationService.php](file://app/Services/MetricsCalculationService.php#L7-L169)
 
 ## Dependency Analysis
-The application's components are loosely coupled through Laravel's service container and dependency injection. Services depend on models and external packages, while controllers depend on services. Observers are registered with models through the service provider. The ApplicationEventObserver uses saveQuietly() to prevent infinite loops, and the MetricsCalculationService includes safeguards against division by zero.
+The application has a well-defined dependency structure with clear separation between components. The service layer depends on models for data access and external services for API integration. Models depend on Eloquent ORM for database operations. Controllers depend on services for business logic. The Filament admin interface depends on resources that define CRUD operations. The system uses Laravel's service container for dependency injection, promoting loose coupling. External dependencies include Spatie Laravel-PDF for PDF generation, OpenAI API for AI analysis, and Laravel's built-in components for database, queue, and storage operations.
 
 ```mermaid
 graph TD
-A[AppServiceProvider] --> B[JobApplication::observe]
-B --> C[JobApplicationObserver]
-C --> D[PdfSnapshotService]
-D --> E[Spatie PDF]
-D --> F[Storage]
-G[AppServiceProvider] --> H[ApplicationEvent::observe]
-H --> I[ApplicationEventObserver]
-I --> J[JobApplication]
-K[AdminPanelProvider] --> L[Filament Resources]
-L --> M[Eloquent Models]
-M --> N[Database]
-O[console.php] --> P[metrics:refresh]
-P --> Q[MetricsCalculationService]
-Q --> R[Metrics]
+A[CvReviewService] --> B[Http Client]
+A --> C[OpenAI API]
+A --> D[Cv Model]
+A --> E[JobApplication Model]
+F[PdfSnapshotService] --> G[Spatie Laravel-PDF]
+F --> H[Storage Facade]
+F --> I[Cv Model]
+F --> J[PDFSnapshot Model]
+K[MetricsCalculationService] --> L[JobApplication Model]
+K --> M[Metric Model]
+N[CvPdfController] --> O[PdfSnapshotService]
+N --> P[Cv Model]
+Q[JobApplicationObserver] --> R[PdfSnapshotService]
+Q --> S[JobApplication Model]
 ```
 
 **Diagram sources**
-- [AppServiceProvider.php](file://app/Providers/AppServiceProvider.php)
-- [AdminPanelProvider.php](file://app/Providers/Filament/AdminPanelProvider.php)
+- [CvReviewService.php](file://app/Services/CvReviewService.php)
 - [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php)
-- [ApplicationEventObserver.php](file://app/Observers/ApplicationEventObserver.php)
 - [MetricsCalculationService.php](file://app/Services/MetricsCalculationService.php)
-- [console.php](file://routes/console.php)
+- [CvPdfController.php](file://app/Http/Controllers/CvPdfController.php)
+- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php)
+
+**Section sources**
+- [CvReviewService.php](file://app/Services/CvReviewService.php)
+- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php)
+- [MetricsCalculationService.php](file://app/Services/MetricsCalculationService.php)
 
 ## Performance Considerations
-The application uses several strategies to optimize performance:
-
-- **Caching**: Configuration shows database cache store with table definition
-- **Eager Loading**: Controllers and services use eager loading to prevent N+1 queries
-- **Indexing**: Database migrations include indexes on frequently queried columns
-- **File Storage**: Local disk storage configured for private file access
-- **Scheduled Processing**: Metrics calculation runs daily via scheduler to avoid real-time computation
-- **Efficient Queries**: Metrics calculations use optimized database queries with proper filtering
-
-The system is designed to be stateless, allowing for horizontal scaling. PDF generation is handled synchronously but could be moved to queues for better performance under load. The metrics system uses a refresh strategy rather than real-time calculation to maintain performance.
+The application includes several performance optimizations for handling large CV datasets. The PDF generation system validates file size to prevent storage exhaustion, limiting PDFs to 10MB. The CvReviewService includes token estimation to manage API costs and prevent timeouts. Database queries use eager loading to avoid N+1 problems, particularly when rendering CVs with all sections. The metrics system uses batch calculations and stores results to avoid expensive real-time computations. The system uses Laravel's built-in caching mechanisms for configuration and routes. For scalability, the application can be deployed with queue workers to handle background jobs like PDF generation and AI analysis.
 
 **Section sources**
-- [cache.php](file://config/cache.php)
-- [filesystems.php](file://config/filesystems.php)
-- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php)
+- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php#L35-L40)
+- [CvReviewService.php](file://app/Services/CvReviewService.php#L100-L115)
+- [Cv.php](file://app/Models/Cv.php#L100-L120)
 - [MetricsCalculationService.php](file://app/Services/MetricsCalculationService.php)
-- [console.php](file://routes/console.php)
 
 ## Troubleshooting Guide
-Common issues and their solutions:
-
-- **PDF generation fails**: Check storage permissions and available disk space
-- **Missing observer behavior**: Verify AppServiceProvider boot method registers observers
-- **Filament resource not appearing**: Check AdminPanelProvider discovers resources
-- **File not found errors**: Verify storage disk configuration and file paths
-- **Metrics not updating**: Check that the scheduler is running and console command executes successfully
-- **Application events not updating last_activity_at**: Verify ApplicationEventObserver is registered in AppServiceProvider and using saveQuietly() to prevent infinite loops
-- **Division by zero in metrics**: Ensure time period calculations use max(1, ceil($days / 7)) and check for zero denominators in rate calculations
-
-The application logs PDF snapshot creation failures and metrics calculation errors, which can be checked in the Laravel log files.
+Common issues in the application include API connectivity problems, PDF generation failures, and data consistency issues. For OpenAI API errors, verify the API key in `config/services.php` and check rate limits. For PDF generation issues, ensure the Spatie Laravel-PDF package is properly configured and check file permissions in the storage directory. For stale CV reviews, ensure the `ai_review_completed_at` timestamp is updated after analysis. The system includes comprehensive logging through Laravel's logging system, with error details captured in the application log. Unit and feature tests in the `tests` directory can help identify and resolve issues.
 
 **Section sources**
-- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php)
-- [ApplicationEventObserver.php](file://app/Observers/ApplicationEventObserver.php)
-- [AdminPanelProvider.php](file://app/Providers/Filament/AdminPanelProvider.php)
-- [filesystems.php](file://config/filesystems.php)
-- [MetricsCalculationService.php](file://app/Services/MetricsCalculationService.php)
-- [console.php](file://routes/console.php)
+- [OpenAiApiException.php](file://app/Exceptions/OpenAiApiException.php)
+- [InvalidResponseException.php](file://app/Exceptions/InvalidResponseException.php)
+- [IncompleteCvException.php](file://app/Exceptions/IncompleteCvException.php)
+- [MissingJobDescriptionException.php](file://app/Exceptions/MissingJobDescriptionException.php)
+- [logging.php](file://config/logging.php)
 
 ## Conclusion
-The CV Builder application implements a clean, maintainable architecture using Laravel's MVC pattern with additional service and observer patterns. The Filament admin panel provides a robust interface for data management, while the service layer encapsulates business logic for reusability. The system is designed with scalability in mind, using stateless operation and configurable caching. Security is addressed through proper file storage configuration and data integrity measures like PDF hash verification. The recent addition of the ApplicationEvent and Metrics systems enhances the application's capabilities for activity tracking and performance analysis. The architecture provides clear extensibility points for adding new features while maintaining separation of concerns. Recent improvements to the observer pattern implementation and metrics calculations demonstrate attention to edge cases and robustness, ensuring reliable operation in production environments.
+The cv-builder application demonstrates a well-structured Laravel architecture with clear separation of concerns through the MVC pattern enhanced with a service layer. The use of Filament provides a powerful admin interface while allowing custom business logic through service classes. Architectural patterns like the Service Pattern, Observer Pattern, and Repository Pattern promote maintainability and testability. The integration of external services like OpenAI enables advanced features while proper error handling ensures reliability. The system is designed for scalability with performance optimizations for handling large datasets. Future enhancements could include additional AI features, A/B testing of CV variants, and improved search capabilities, following the YAGNI principle of implementing features only when validated as necessary.

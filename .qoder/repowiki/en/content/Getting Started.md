@@ -2,257 +2,238 @@
 
 <cite>
 **Referenced Files in This Document**   
+- [README.md](file://README.md)
 - [composer.json](file://composer.json)
 - [package.json](file://package.json)
-- [bootstrap/app.php](file://bootstrap/app.php)
-- [routes/web.php](file://routes/web.php)
-- [database/migrations/2025_10_03_201646_create_cvs_table.php](file://database/migrations/2025_10_03_201646_create_cvs_table.php)
-- [database/seeders/BaseCVSeeder.php](file://database/seeders/BaseCVSeeder.php)
-- [database/seeders/DatabaseSeeder.php](file://database/seeders/DatabaseSeeder.php)
-- [app/Http/Controllers/CvPdfController.php](file://app/Http/Controllers/CvPdfController.php)
-- [resources/views/cv/show.blade.php](file://resources/views/cv/show.blade.php)
-- [resources/views/welcome.blade.php](file://resources/views/welcome.blade.php)
+- [vite.config.js](file://vite.config.js)
+- [.env.example](file://.env.example)
+- [DatabaseSeeder.php](file://database/seeders/DatabaseSeeder.php)
+- [PdfTemplateSeeder.php](file://database/seeders/PdfTemplateSeeder.php)
+- [services.php](file://config/services.php)
 </cite>
 
 ## Table of Contents
-1. [Prerequisites](#prerequisites)
-2. [Installation Steps](#installation-steps)
-3. [Environment Configuration](#environment-configuration)
-4. [Database Setup](#database-setup)
-5. [Asset Compilation](#asset-compilation)
-6. [Running the Application](#running-the-application)
-7. [Key Files and Entry Points](#key-files-and-entry-points)
-8. [Troubleshooting Common Issues](#troubleshooting-common-issues)
+1. [Introduction](#introduction)
+2. [Prerequisites](#prerequisites)
+3. [Cloning the Repository](#cloning-the-repository)
+4. [Installing PHP Dependencies](#installing-php-dependencies)
+5. [Installing Node.js Dependencies](#installing-nodejs-dependencies)
+6. [Environment Configuration](#environment-configuration)
+7. [Database Setup and Migrations](#database-setup-and-migrations)
+8. [OpenAI API Configuration](#openai-api-configuration)
+9. [Running Database Seeders](#running-database-seeders)
+10. [Starting the Development Server](#starting-the-development-server)
+11. [Verification Steps](#verification-steps)
+12. [Common Setup Issues and Solutions](#common-setup-issues-and-solutions)
+
+## Introduction
+This guide provides a comprehensive walkthrough for setting up the cv-builder application locally. It covers all essential steps from repository cloning to launching the development server, with detailed instructions for dependency installation, environment configuration, database setup, and service integration. The guide is designed to be beginner-friendly while offering technical depth for troubleshooting common issues.
 
 ## Prerequisites
-Before setting up the CV Builder application, ensure your development environment meets the following requirements:
-- **PHP 8.2 or higher**: Required for Laravel 12 framework compatibility
-- **Node.js 18 or higher**: Required for Vite and frontend asset compilation
-- **SQLite or MySQL**: Supported database systems for data persistence
-- **Composer**: PHP dependency manager
-- **npm or yarn**: Node.js package manager
+Before beginning the setup process, ensure your development environment meets the following requirements:
+- **PHP 8.2 or higher** installed and available in your system PATH
+- **Composer** for PHP dependency management
+- **Node.js 18+** with **npm** or **yarn**
+- A database system (MySQL 5.7+/8.0 or SQLite)
+- Git for version control
 
-The application uses Laravel 12 with Filament admin panel and Vite for asset bundling, as specified in the `composer.json` and `package.json` files.
-
-**Section sources**
-- [composer.json](file://composer.json#L10-L14)
-- [package.json](file://package.json#L1-L5)
-
-## Installation Steps
-Follow these steps to install and set up the CV Builder application locally:
-
-1. **Clone the repository** from your source control system to your local machine
-2. **Navigate to the project directory** using your terminal
-3. **Install PHP dependencies** by running:
-   ```bash
-   composer install
-   ```
-   This installs Laravel framework, Filament admin panel, and spatie/laravel-pdf package as defined in `composer.json`.
-
-4. **Install Node.js dependencies** by running:
-   ```bash
-   npm install
-   ```
-   This installs Vite, Tailwind CSS, and other frontend dependencies required for asset compilation.
+Verify your installations with:
+```bash
+php -v
+composer --version
+node -v
+npm -v
+```
 
 **Section sources**
-- [composer.json](file://composer.json#L10-L14)
-- [package.json](file://package.json#L1-L5)
+- [README.md](file://README.md#L0-L215)
+
+## Cloning the Repository
+Begin by cloning the cv-builder repository from its source:
+
+```bash
+git clone https://github.com/withoutfanfare/cv-builder.git
+cd cv-builder
+```
+
+This creates a local copy of the project with the complete directory structure, including all source files, configuration, and assets needed for development.
+
+**Section sources**
+- [README.md](file://README.md#L25-L28)
+
+## Installing PHP Dependencies
+Install all required PHP packages using Composer:
+
+```bash
+composer install
+```
+
+This command reads the `composer.json` file and installs all dependencies specified in the `require` and `require-dev` sections, including Laravel 12, Filament 4, OpenAI client, and Spatie Laravel-PDF. The installation includes essential packages for framework functionality, testing, and development tools.
+
+**Section sources**
+- [composer.json](file://composer.json#L0-L83)
+- [README.md](file://README.md#L30-L31)
+
+## Installing Node.js Dependencies
+Install frontend dependencies using npm:
+
+```bash
+npm install
+```
+
+This installs development tools and libraries specified in `package.json`, including Vite for asset building, Tailwind CSS for styling, Axios for HTTP requests, and Puppeteer for PDF generation. The `devDependencies` include Laravel Vite Plugin and concurrently for development server management.
+
+**Section sources**
+- [package.json](file://package.json#L0-L20)
+- [README.md](file://README.md#L30-L31)
 
 ## Environment Configuration
-After installing dependencies, configure the application environment:
+Configure the application environment by creating and editing the `.env` file:
 
-1. **Create the .env file** by copying the example:
-   ```bash
-   cp .env.example .env
-   ```
-
-2. **Configure database settings** in the `.env` file:
-   - For **SQLite**: Set `DB_CONNECTION=sqlite` and ensure the `database/database.sqlite` file exists
-   - For **MySQL**: Set `DB_CONNECTION=mysql` and update `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD`
-
-3. **Configure mail settings** if email functionality is needed:
-   - Set `MAIL_MAILER` to your preferred mail driver (smtp, mailgun, etc.)
-   - Update corresponding mail credentials
-
-The application will automatically create the SQLite database file during setup as shown in the `post-create-project-cmd` script in `composer.json`.
-
-**Section sources**
-- [composer.json](file://composer.json#L70-L73)
-
-## Database Setup
-Set up the application database by running the following Artisan commands:
-
-1. **Generate application key**:
-   ```bash
-   php artisan key:generate
-   ```
-
-2. **Run database migrations** to create all required tables:
-   ```bash
-   php artisan migrate
-   ```
-   This creates tables for CVs, job applications, PDF snapshots, and related entities as defined in the migration files under `database/migrations/`.
-
-3. **Seed the database** with sample data:
-   ```bash
-   php artisan db:seed
-   ```
-   This runs the `DatabaseSeeder` which calls `BaseCVSeeder` to populate the database with a complete CV, job applications, and related data for demonstration purposes.
-
-The migration `2025_10_03_201646_create_cvs_table.php` creates the base CVs table with title and timestamps, while subsequent migrations add related tables for sections, experiences, education, and other CV components.
-
-**Section sources**
-- [database/migrations/2025_10_03_201646_create_cvs_table.php](file://database/migrations/2025_10_03_201646_create_cvs_table.php#L1-L30)
-- [database/seeders/BaseCVSeeder.php](file://database/seeders/BaseCVSeeder.php#L1-L353)
-- [database/seeders/DatabaseSeeder.php](file://database/seeders/DatabaseSeeder.php#L1-L27)
-
-## Asset Compilation
-Compile frontend assets using Vite, which is configured as the build tool:
-
-1. **Compile assets for development**:
-   ```bash
-   npm run dev
-   ```
-   This starts Vite in development mode with hot module replacement.
-
-2. **Alternatively, build for production**:
-   ```bash
-   npm run build
-   ```
-   This compiles and minifies assets for production deployment.
-
-The Vite configuration is managed through `vite.config.js` and uses Tailwind CSS for styling, as specified in `package.json` dependencies.
-
-**Section sources**
-- [package.json](file://package.json#L1-L5)
-
-## Running the Application
-Start the development server and access the application:
-
-1. **Launch the Laravel development server**:
-   ```bash
-   php artisan serve
-   ```
-   This starts the server at `http://localhost:8000`.
-
-2. **Access key application entry points**:
-   - **Homepage**: `http://localhost:8000` - Displays the welcome page with application overview
-   - **Filament Admin Dashboard**: `http://localhost:8000/admin` - Administrative interface for managing CVs and job applications
-   - **PDF Generation Endpoint**: `http://localhost:8000/cv/{id}/pdf` - Generates and downloads CV as PDF
-
-3. **Alternative development script**:
-   The `dev` script in `composer.json` can be used to start multiple services simultaneously:
-   ```bash
-   composer dev
-   ```
-   This concurrently runs the web server, queue listener, Pail debugger, and Vite development server.
-
-**Section sources**
-- [routes/web.php](file://routes/web.php#L1-L10)
-- [app/Http/Controllers/CvPdfController.php](file://app/Http/Controllers/CvPdfController.php#L8-L33)
-- [resources/views/welcome.blade.php](file://resources/views/welcome.blade.php#L1-L720)
-
-## Key Files and Entry Points
-Understand the core application files and their purposes:
-
-### Bootstrap and Routing
-The `bootstrap/app.php` file serves as the application bootstrap, configuring the Laravel application instance and defining routing. It specifies `routes/web.php` as the web routes file and `routes/console.php` for console commands.
-
-```mermaid
-flowchart TD
-A["bootstrap/app.php"] --> B["Application Configuration"]
-B --> C["Routing Setup"]
-C --> D["web.php"]
-C --> E["console.php"]
-D --> F["Route Definitions"]
-E --> G["Command Definitions"]
+```bash
+cp .env.example .env
 ```
 
-**Diagram sources**
-- [bootstrap/app.php](file://bootstrap/app.php#L1-L18)
-- [routes/web.php](file://routes/web.php#L1-L10)
+Key environment variables to configure:
+- **APP_NAME**: Your application name
+- **APP_ENV**: Set to `local` for development
+- **APP_KEY**: Generate with `php artisan key:generate`
+- **DB_CONNECTION**: Choose `mysql` or `sqlite`
+- **OPENAI_API_KEY**: Your OpenAI API key
 
-### Web Routes
-The `routes/web.php` file defines the application's web endpoints:
-- Root route (`/`) returns the welcome view
-- CV PDF route (`/cv/{cv}/pdf`) handled by `CvPdfController@download`
-
-The route uses Laravel's route model binding to automatically resolve the CV model instance from the URL parameter.
-
-### PDF Generation
-The `CvPdfController` handles PDF generation by:
-1. Eager loading all CV relationships (header info, sections, experiences, etc.)
-2. Generating a filename based on CV title and current date
-3. Using Spatie Laravel PDF to render the `cv.show` Blade view as a downloadable PDF
-
-The PDF template in `resources/views/cv/show.blade.php` uses Tailwind CSS and Poppins font to create a professional CV layout with proper section organization and styling.
-
-```mermaid
-sequenceDiagram
-participant Browser
-participant Controller as CvPdfController
-participant Model as Cv Model
-participant PDF as Spatie PDF
-participant View as cv/show.blade.php
-Browser->>Controller : GET /cv/1/pdf
-Controller->>Model : Load CV with relationships
-Model-->>Controller : CV data with sections
-Controller->>View : Render view with CV data
-View-->>Controller : HTML content
-Controller->>PDF : Generate PDF from HTML
-PDF-->>Controller : PDF document
-Controller-->>Browser : Download response with PDF
+For SQLite, create the database file:
+```bash
+touch database/database.sqlite
 ```
 
-**Diagram sources**
-- [app/Http/Controllers/CvPdfController.php](file://app/Http/Controllers/CvPdfController.php#L8-L33)
-- [resources/views/cv/show.blade.php](file://resources/views/cv/show.blade.php#L1-L263)
+**Section sources**
+- [README.md](file://README.md#L33-L37)
+
+## Database Setup and Migrations
+Run database migrations to create all necessary tables:
+
+```bash
+php artisan migrate
+```
+
+This executes all migration files in `database/migrations/`, creating tables for users, CVs, job applications, cover letters, PDF snapshots, and related entities. The migration process establishes the complete database schema as defined in the application's data model.
 
 **Section sources**
-- [bootstrap/app.php](file://bootstrap/app.php#L1-L18)
-- [routes/web.php](file://routes/web.php#L1-L10)
-- [app/Http/Controllers/CvPdfController.php](file://app/Http/Controllers/CvPdfController.php#L8-L33)
-- [resources/views/cv/show.blade.php](file://resources/views/cv/show.blade.php#L1-L263)
+- [README.md](file://README.md#L39-L40)
 
-## Troubleshooting Common Issues
-Address common setup problems with these solutions:
+## OpenAI API Configuration
+Configure OpenAI integration by setting the API key in your `.env` file:
 
-### Missing PHP Extensions
-If you encounter errors about missing PHP extensions:
-- Ensure `php-dom`, `php-mbstring`, and `php-xml` extensions are installed
-- For SQLite, ensure `php-sqlite3` is enabled
-- Check PHP version with `php -v` to confirm it meets the 8.2+ requirement
+```env
+OPENAI_API_KEY=your_api_key_here
+OPENAI_MODEL=gpt-4-turbo-preview
+OPENAI_MONTHLY_BUDGET_CENTS=5000
+```
 
-### Asset Compilation Errors
-For Vite/Tailwind CSS compilation issues:
-- Verify Node.js version with `node -v`
-- Clear npm cache with `npm cache clean --force`
-- Delete `node_modules` and `package-lock.json`, then run `npm install` again
-- Ensure sufficient memory is available for the build process
-
-### Migration Failures
-If database migrations fail:
-- For SQLite: Ensure the `database/database.sqlite` file is writable
-- For MySQL: Verify database credentials in `.env` and that the database exists
-- Run `php artisan migrate:fresh --seed` to reset and re-seed the database
-- Check file permissions on the database directory
-
-### Filament Authentication
-The Filament admin panel at `/admin` requires authentication:
-- Default credentials may be configured in the seeder
-- Use `php artisan make:filament-user` to create an admin user if needed
-- Ensure the `AppServiceProvider` registers Filament properly
-
-### PDF Generation Issues
-If PDF generation fails:
-- Verify `puppeteer` is properly installed (required by spatie/laravel-pdf)
-- Check that the `cv/show.blade.php` view exists and is accessible
-- Ensure sufficient memory is allocated for PDF generation
-- Verify that external resources (fonts, images) are accessible
+The OpenAI configuration is managed in `config/services.php`, where the API key, model selection, and monthly budget are defined. This integration enables AI-powered features such as CV review, keyword analysis, and content suggestions.
 
 **Section sources**
-- [composer.json](file://composer.json#L10-L14)
-- [package.json](file://package.json#L1-L5)
-- [database/seeders/BaseCVSeeder.php](file://database/seeders/BaseCVSeeder.php#L1-L353)
-- [app/Http/Controllers/CvPdfController.php](file://app/Http/Controllers/CvPdfController.php#L8-L33)
+- [config/services.php](file://config/services.php#L0-L44)
+- [README.md](file://README.md#L33-L37)
+
+## Running Database Seeders
+Seed the database with initial data:
+
+```bash
+php artisan db:seed
+```
+
+This executes the `DatabaseSeeder` which creates a test user and calls `BaseCVSeeder`. Additionally, you can run specific seeders:
+```bash
+php artisan db:seed --class=PdfTemplateSeeder
+```
+
+The `PdfTemplateSeeder` populates the database with three default templates:
+- **Default**: Classic CV template with traditional layout
+- **Modern**: Clean design with color accents
+- **Classic**: Traditional template with serif fonts
+
+These templates are stored in the `pdf_templates` table and can be used for CV PDF generation.
+
+**Section sources**
+- [DatabaseSeeder.php](file://database/seeders/DatabaseSeeder.php#L0-L27)
+- [PdfTemplateSeeder.php](file://database/seeders/PdfTemplateSeeder.php#L0-L46)
+- [README.md](file://README.md#L40-L41)
+
+## Starting the Development Server
+Launch the application using Artisan and Vite:
+
+```bash
+# For development with hot reload
+npm run dev
+php artisan serve
+```
+
+Or use the convenience script to run all services simultaneously:
+```bash
+composer dev
+```
+
+This starts the PHP development server, queue listener, log watcher, and Vite development server concurrently, enabling real-time asset compilation and immediate feedback during development.
+
+**Section sources**
+- [vite.config.js](file://vite.config.js#L0-L13)
+- [README.md](file://README.md#L43-L44)
+- [composer.json](file://composer.json#L65-L75)
+
+## Verification Steps
+Confirm successful installation by completing these verification steps:
+
+1. **Access the application**: Navigate to `http://localhost:8000/admin` in your browser
+2. **Login**: Use the seeded credentials:
+   - Email: `test@example.com`
+   - Password: `password`
+3. **Create a test CV**: 
+   - Go to **CVs** → **Create**
+   - Fill in personal information and add experience/education
+   - Save the CV
+4. **Generate PDF**: 
+   - View the created CV
+   - Select a template and generate PDF
+5. **Check OpenAI integration**: 
+   - Use AI review features if available
+   - Verify no API errors in browser console
+
+Successful completion of these steps confirms a properly configured local environment.
+
+**Section sources**
+- [README.md](file://README.md#L46-L47)
+
+## Common Setup Issues and Solutions
+Address frequent setup problems with these troubleshooting solutions:
+
+**Database Connection Errors**
+- **Issue**: "SQLSTATE[HY000] [2002] Connection refused"
+- **Solution**: Verify database service is running and credentials in `.env` are correct
+
+**Missing PHP Extensions**
+- **Issue**: "The each() function is deprecated"
+- **Solution**: Ensure PHP 8.2+ is used and required extensions (PDO, OpenSSL, Mbstring) are enabled
+
+**Vite Asset Compilation Failures**
+- **Issue**: "Cannot find module 'vite'"
+- **Solution**: Run `npm install` again and verify Node.js version compatibility
+
+**OpenAI Integration Issues**
+- **Issue**: "Invalid API key"
+- **Solution**: Verify `OPENAI_API_KEY` is correctly set in `.env` and has sufficient quota
+
+**Migration Errors**
+- **Issue**: "Unknown database"
+- **Solution**: For MySQL, create the database manually: `CREATE DATABASE cv_builder;`
+
+**File Permission Issues**
+- **Issue**: "Failed to open stream: Permission denied"
+- **Solution**: Set proper permissions: `chmod -R 775 storage bootstrap/cache`
+
+These solutions address the most common obstacles encountered during local setup, ensuring a smooth development experience.
+
+**Section sources**
+- [README.md](file://README.md#L39-L40)
+- [config/services.php](file://config/services.php#L0-L44)
+- [composer.json](file://composer.json#L0-L83)

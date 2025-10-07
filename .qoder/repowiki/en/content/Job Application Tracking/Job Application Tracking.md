@@ -3,288 +3,199 @@
 <cite>
 **Referenced Files in This Document**   
 - [JobApplication.php](file://app/Models/JobApplication.php)
+- [ApplicationEvent.php](file://app/Models/ApplicationEvent.php)
+- [Cv.php](file://app/Models/Cv.php)
+- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php)
 - [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php)
+- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php)
+- [create_job_applications_table.php](file://database/migrations/2025_10_03_224900_create_job_applications_table.php)
+- [extend_job_applications_table.php](file://database/migrations/2025_10_04_002540_extend_job_applications_table.php)
+- [add_withdrawn_at_to_job_applications_table.php](file://database/migrations/2025_10_04_090625_add_withdrawn_at_to_job_applications_table.php)
+- [add_ai_review_fields_to_job_applications.php](file://database/migrations/2025_10_04_152747_add_ai_review_fields_to_job_applications.php)
+- [create_application_events_table.php](file://database/migrations/2025_10_04_100002_create_application_events_table.php)
+- [create_cvs_table.php](file://database/migrations/2025_10_03_201646_create_cvs_table.php)
 - [JobApplicationResource.php](file://app/Filament/Resources/JobApplications/JobApplicationResource.php)
 - [JobApplicationForm.php](file://app/Filament/Resources/JobApplications/Schemas/JobApplicationForm.php)
 - [JobApplicationsTable.php](file://app/Filament/Resources/JobApplications/Tables/JobApplicationsTable.php)
-- [extend_job_applications_table.php](file://database/migrations/2025_10_04_002540_extend_job_applications_table.php)
-- [Cv.php](file://app/Models/Cv.php)
-- [ApplicationsNeedingAction.php](file://app/Filament/Widgets/ApplicationsNeedingAction.php)
-- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php)
-- [KeywordCoverageService.php](file://app/Services/KeywordCoverageService.php)
+- [EventsRelationManager.php](file://app/Filament/Resources/JobApplications/RelationManagers/EventsRelationManager.php)
 </cite>
 
-## Update Summary
-**Changes Made**   
-- Updated Creating and Managing Job Applications section to reflect enhanced UI/UX with new section organization, icons, and field labels
-- Added detailed information about keyword coverage analysis functionality in both Creating and Managing Job Applications and Common Use Cases sections
-- Enhanced Status Workflow and Implementation section with updated status enum values from code
-- Updated Observer Pattern and Event Handling section with accurate implementation details from JobApplicationObserver
-- Added information about AI review integration in the job application form
-- Updated CV Integration and Versioning section with details about soft delete behavior and data preservation
-- Enhanced Filtering and Sorting Applications section with accurate filter logic and widget behavior
-- Added sources for all analyzed files with specific line references
-
 ## Table of Contents
-1. [Introduction](#introduction)
-2. [Core Data Model](#core-data-model)
-3. [Creating and Managing Job Applications](#creating-and-managing-job-applications)
-4. [Status Workflow and Implementation](#status-workflow-and-implementation)
-5. [Observer Pattern and Event Handling](#observer-pattern-and-event-handling)
-6. [CV Integration and Versioning](#cv-integration-and-versioning)
-7. [Filtering and Sorting Applications](#filtering-and-sorting-applications)
-8. [Common Use Cases](#common-use-cases)
+1. [Job Application Lifecycle Management](#job-application-lifecycle-management)
+2. [Job Application Data Model](#job-application-data-model)
+3. [Application Status Workflow](#application-status-workflow)
+4. [Application Events and Timeline Tracking](#application-events-and-timeline-tracking)
+5. [Job Application Observer and Side Effects](#job-application-observer-and-side-effects)
+6. [Needs Attention Filtering System](#needs-attention-filtering-system)
+7. [CV Integration and AI Review Process](#cv-integration-and-ai-review-process)
+8. [Application Withdrawal and Status Transitions](#application-withdrawal-and-status-transitions)
 
-## Introduction
-The job application tracking system enables users to manage their job search process comprehensively. It provides tools for creating and organizing job applications with detailed metadata, tracking application status through various stages, and integrating with CV versions. The system includes automated workflows, dashboard widgets for monitoring progress, and mechanisms for preserving application history. This documentation details the implementation of the JobApplication model, its relationship with other entities, and the business logic that drives the application tracking functionality.
+## Job Application Lifecycle Management
 
-## Core Data Model
+The job application lifecycle is managed through the `JobApplicationResource` interface, which provides a comprehensive UI for creating, editing, and tracking job applications. Users can input key details such as company name, position title, job description, application status, and relevant dates. The system supports full CRUD operations and integrates with CV versions, cover letters, and PDF snapshots. Each application is tracked through its entire lifecycle from initial submission to final outcome, with detailed event logging and status transitions.
 
-The JobApplication model serves as the central entity for tracking job applications, storing essential information about each opportunity. The data structure was extended through a migration to support comprehensive tracking capabilities.
+**Section sources**
+- [JobApplicationResource.php](file://app/Filament/Resources/JobApplications/JobApplicationResource.php)
+- [JobApplicationForm.php](file://app/Filament/Resources/JobApplications/Schemas/JobApplicationForm.php)
+- [JobApplicationsTable.php](file://app/Filament/Resources/JobApplications/Tables/JobApplicationsTable.php)
+
+## Job Application Data Model
+
+The `JobApplication` model represents the core entity for tracking job applications. It includes fields for company name, position, job description, status, salary expectations, and application dates. The model has a soft delete capability and supports relationships with CVs, cover letters, application events, and PDF snapshots. The database schema is defined across multiple migrations that progressively enhance the table structure with additional fields for AI review data, withdrawal tracking, and extended metadata.
 
 ```mermaid
 erDiagram
 JOB_APPLICATION {
-bigint id PK
-bigint cv_id FK
+uuid id PK
 string company_name
-string job_title
-string source
-enum application_status
-enum send_status
-date application_deadline
-date next_action_date
+string position
 text job_description
-timestamp last_activity_at
+string status
+date applied_at
+date interview_scheduled_at
+timestamp withdrawn_at
+json ai_review_results
+string ai_review_status
+uuid cv_id FK
+uuid cover_letter_id FK
+uuid pdf_snapshot_id FK
 }
 CV {
-bigint id PK
-string title
+uuid id PK
+string name
+uuid user_id FK
+boolean is_active
 timestamp deleted_at
 }
+APPLICATION_EVENT {
+uuid id PK
+string event_type
+text notes
+timestamp occurred_at
+uuid job_application_id FK
+}
 PDF_SNAPSHOT {
-bigint id PK
-bigint job_application_id FK
-string file_path
-string hash
+uuid id PK
+string filename
+string path
+uuid job_application_id FK
+uuid cv_id FK
 }
-JOB_APPLICATION ||--o{ PDF_SNAPSHOT : "has one"
+JOB_APPLICATION ||--o{ APPLICATION_EVENT : "has"
 JOB_APPLICATION }o--|| CV : "uses"
+JOB_APPLICATION }o--|| PDF_SNAPSHOT : "generates"
 ```
 
 **Diagram sources**
-- [extend_job_applications_table.php](file://database/migrations/2025_10_04_002540_extend_job_applications_table.php#L15-L35)
-- [JobApplication.php](file://app/Models/JobApplication.php#L15-L30)
-- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php#L15-L25)
+- [create_job_applications_table.php](file://database/migrations/2025_10_03_224900_create_job_applications_table.php)
+- [extend_job_applications_table.php](file://database/migrations/2025_10_04_002540_extend_job_applications_table.php)
+- [add_withdrawn_at_to_job_applications_table.php](file://database/migrations/2025_10_04_090625_add_withdrawn_at_to_job_applications_table.php)
+- [add_ai_review_fields_to_job_applications.php](file://database/migrations/2025_10_04_152747_add_ai_review_fields_to_job_applications.php)
+- [create_cvs_table.php](file://database/migrations/2025_10_03_201646_create_cvs_table.php)
 
 **Section sources**
-- [JobApplication.php](file://app/Models/JobApplication.php#L1-L123)
-- [extend_job_applications_table.php](file://database/migrations/2025_10_04_002540_extend_job_applications_table.php#L1-L46)
+- [JobApplication.php](file://app/Models/JobApplication.php)
+- [Cv.php](file://app/Models/Cv.php)
+- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php)
 
-## Creating and Managing Job Applications
+## Application Status Workflow
 
-Users can create and manage job applications through a comprehensive form interface that captures all relevant details. The system provides a structured approach to application management with validation and automated features.
-
-The JobApplicationForm schema defines the user interface for creating and editing applications, organizing fields into logical sections:
-
-- **Company & Position**: Company name, job title, company website, source, and company notes
-- **Contact Information**: Point of contact name and email (collapsed by default)
-- **Application Status**: Application status, send status, application deadline, and next action date
-- **CV Selection**: Association with a specific CV version
-- **Job Description**: Full job posting for keyword analysis with real-time coverage feedback
-- **Interview Details**: Interview scheduling and preparation notes (collapsed by default)
-- **Additional Notes**: General application notes (collapsed by default)
-- **AI CV Review Summary**: Summary of AI-powered CV review when available
-
-When creating a new application, users must provide required fields including company name and job title. The form includes helper text and validation to ensure data quality. The CV selection field includes a note clarifying that selecting a CV does not automatically submit the application; users must explicitly change the send status to "Sent" to trigger PDF snapshot creation.
-
-The form features enhanced UI/UX with descriptive section icons and organized layout. The keyword coverage analysis provides immediate feedback by calculating the percentage of keywords from the job description that appear in the selected CV. This analysis displays the coverage percentage and top 20 missing keywords to help users optimize their applications.
-
-**Section sources**   
-- [JobApplicationForm.php](file://app/Filament/Resources/JobApplications/Schemas/JobApplicationForm.php#L17-L256)
-
-## Status Workflow and Implementation
-
-The job application system implements a comprehensive status workflow that tracks applications through the hiring process. The workflow is implemented through enumerated status fields in the JobApplication model.
-
-```mermaid
-stateDiagram-v2
-[*] --> Draft
-Draft --> Pending : Submit application
-Pending --> Interviewing : Request interview
-Interviewing --> Offered : Successful interview
-Interviewing --> Rejected : Unsuccessful interview
-Offered --> Accepted : Accept offer
-Offered --> Rejected : Decline offer
-Draft --> Withdrawn : Cancel application
-Pending --> Withdrawn : Cancel application
-Interviewing --> Withdrawn : Cancel application
-Offered --> Withdrawn : Cancel application
-Draft --> Rejected : Employer rejection
-Pending --> Rejected : Employer rejection
-state "Draft" as draft
-state "Pending" as pending
-state "Interviewing" as interviewing
-state "Offered" as offered
-state "Accepted" as accepted
-state "Rejected" as rejected
-state "Withdrawn" as withdrawn
-```
-
-**Diagram sources**
-- [JobApplicationForm.php](file://app/Filament/Resources/JobApplications/Schemas/JobApplicationForm.php#L65-L85)
-- [JobApplicationsTable.php](file://app/Filament/Resources/JobApplications/Tables/JobApplicationsTable.php#L25-L35)
+The application status workflow follows a defined progression through multiple stages: Draft, Submitted, Viewed, Interview Scheduled, Offer Extended, Offer Accepted, Offer Rejected, and Withdrawn. The status field in the `JobApplication` model tracks this progression, enabling users to filter and sort applications based on their current stage. The system enforces valid state transitions and updates related metrics accordingly. Status changes are recorded as application events, providing a complete audit trail of the application journey.
 
 **Section sources**
-- [JobApplication.php](file://app/Models/JobApplication.php#L25-L30)
-- [JobApplicationForm.php](file://app/Filament/Resources/JobApplications/Schemas/JobApplicationForm.php#L60-L90)
+- [JobApplication.php](file://app/Models/JobApplication.php)
+- [JobApplicationForm.php](file://app/Filament/Resources/JobApplications/Schemas/JobApplicationForm.php)
 
-The status workflow includes two distinct status fields:
-- **Application Status**: Tracks the stage in the hiring process (pending, interviewing, offered, etc.)
-- **Send Status**: Indicates whether the application has been submitted (draft, sent)
+## Application Events and Timeline Tracking
 
-This dual-status system allows users to prepare applications in draft form and track when they are actually submitted. The system uses color-coded badges in the interface to visually distinguish between different status values, providing immediate visual feedback about the application's state. The application status enum includes values: draft, pending, reviewed, interviewing, offered, rejected, accepted, and withdrawn.
-
-## Observer Pattern and Event Handling
-
-The system implements the observer pattern through the JobApplicationObserver class to trigger automated actions when applications are created or updated. This pattern enables separation of concerns by decoupling business logic from the model lifecycle events.
-
-```mermaid
-sequenceDiagram
-participant Model as JobApplication
-participant Observer as JobApplicationObserver
-participant Service as PdfSnapshotService
-participant DB as Database
-Model->>Observer : updating()
-Observer->>Model : Update last_activity_at
-Model->>Observer : updated()
-Observer->>Model : Check send_status change
-alt send_status changed to 'sent'
-Observer->>Service : create()
-Service->>Service : Generate PDF
-Service->>Service : Calculate hash
-Service->>DB : Store PDFSnapshot
-Service-->>Observer : Return snapshot
-end
-```
-
-**Diagram sources**
-- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php#L7-L43)
-- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php#L15-L50)
-
-**Section sources**
-- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php#L7-L43)
-- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php#L7-L71)
-
-The observer implements two key methods:
-- **updating()**: Automatically updates the `last_activity_at` timestamp whenever an application is modified, ensuring the system maintains an accurate record of the most recent activity
-- **updated()**: Checks if the send status has changed to "sent" and no PDF snapshot exists, then triggers the creation of a PDF snapshot through the PdfSnapshotService
-
-This event-driven architecture ensures that critical actions like timestamp updates and document generation happen automatically without requiring explicit calls in the application logic. The observer also includes error handling to log failures in PDF generation without preventing the application update from completing.
-
-## CV Integration and Versioning
-
-The job application system integrates closely with the CV management functionality, allowing users to link applications to specific CV versions. This integration ensures that users can track exactly which version of their CV was submitted for each application.
-
-```mermaid
-classDiagram
-class JobApplication {
-+cv_id : bigint
-+belongsTo(Cv)
-+hasOne(PDFSnapshot)
-}
-class Cv {
-+id : bigint
-+title : string
-+deleted_at : timestamp
-+hasMany(JobApplication)
-+hasMany(CVVersion)
-+cloneCv()
-}
-class CVVersion {
-+cv_id : bigint
-+snapshot_json : json
-+reason : string
-+created_at : timestamp
-+belongsTo(Cv)
-}
-class PDFSnapshot {
-+job_application_id : bigint
-+file_path : string
-+hash : string
-+belongsTo(JobApplication)
-+belongsTo(Cv)
-}
-JobApplication --> Cv : "uses"
-Cv --> CVVersion : "has many"
-JobApplication --> PDFSnapshot : "has one"
-PDFSnapshot --> Cv : "references"
-```
-
-**Diagram sources**
-- [Cv.php](file://app/Models/Cv.php#L150-L180)
-- [CVVersion.php](file://app/Models/CVVersion.php#L15-L25)
-- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php#L15-L25)
-
-**Section sources**
-- [Cv.php](file://app/Models/Cv.php#L150-L220)
-- [CVVersion.php](file://app/Models/CVVersion.php#L7-L30)
-- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php#L7-L44)
-
-When a user changes the send status to "Sent", the system automatically creates a PDF snapshot of the associated CV. The PDFSnapshot model stores the file path and a SHA-256 hash for integrity verification. The system preserves references to CVs even if they are later soft-deleted, ensuring that historical application data remains accessible.
-
-The CV versioning system creates snapshots when CVs are cloned, preserving the state of the CV at the time of cloning. This provides an audit trail of CV changes and allows users to understand which content was included in submitted applications. The `cloneCv()` method in the Cv model handles this process by first creating a CVVersion snapshot before duplicating the CV and its content.
-
-## Filtering and Sorting Applications
-
-The system provides robust filtering and sorting capabilities to help users manage their applications effectively. The JobApplicationsTable component implements these features through the Filament framework's table functionality.
+Application events provide a chronological timeline of all significant interactions with a job application. Each event is recorded in the `ApplicationEvent` model, which captures the event type (e.g., "submitted", "interview_scheduled", "offer_received"), timestamp, and optional notes. The `EventsRelationManager` displays these events in a timeline view within the job application detail page. This event-driven approach enables comprehensive tracking of application progress and facilitates retrospective analysis of application patterns and response times.
 
 ```mermaid
 flowchart TD
-A[Applications List] --> B[Filter Options]
-B --> C[Ternary Filter: Needs Attention]
-B --> D[Select Filter: Send Status]
-B --> E[Select Filter: Application Status]
-A --> F[Sorting Options]
-F --> G[Default Sort: next_action_date ASC]
-F --> H[Sortable Columns: company_name, job_title, last_activity_at]
-A --> I[Search Functionality]
-I --> J[Searchable Columns: company_name, job_title, cv.title]
+A["Application Created"] --> B["Status: Draft"]
+B --> C["User Submits Application"]
+C --> D["Status: Submitted"]
+D --> E["PDF Snapshot Created"]
+E --> F["Event: Application Submitted"]
+F --> G{"Employer Actions"}
+G --> H["Viewed Application"]
+G --> I["Scheduled Interview"]
+G --> J["Extended Offer"]
+H --> K["Status: Viewed"]
+I --> L["Status: Interview Scheduled"]
+J --> M["Status: Offer Extended"]
+M --> N{"Candidate Decision"}
+N --> O["Accepted Offer"]
+N --> P["Rejected Offer"]
+O --> Q["Status: Offer Accepted"]
+P --> R["Status: Offer Rejected"]
+style A fill:#f9f,stroke:#333
+style Q fill:#0f0,stroke:#333
+style R fill:#f00,stroke:#333
 ```
 
 **Diagram sources**
-- [JobApplicationsTable.php](file://app/Filament/Resources/JobApplications/Tables/JobApplicationsTable.php#L15-L60)
-- [ApplicationsNeedingAction.php](file://app/Filament/Widgets/ApplicationsNeedingAction.php#L15-L30)
+- [ApplicationEvent.php](file://app/Models/ApplicationEvent.php)
+- [EventsRelationManager.php](file://app/Filament/Resources/JobApplications/RelationManagers/EventsRelationManager.php)
 
 **Section sources**
-- [JobApplicationsTable.php](file://app/Filament/Resources/JobApplications/Tables/JobApplicationsTable.php#L1-L104)
-- [JobApplication.php](file://app/Models/JobApplication.php#L35-L45)
-- [ApplicationsNeedingAction.php](file://app/Filament/Widgets/ApplicationsNeedingAction.php#L10-L48)
+- [ApplicationEvent.php](file://app/Models/ApplicationEvent.php)
+- [EventsRelationManager.php](file://app/Filament/Resources/JobApplications/RelationManagers/EventsRelationManager.php)
 
-The "Needs Attention" filter is particularly important, using a scope method in the JobApplication model to identify applications requiring follow-up. Applications are considered to need attention if:
-- The next action date is in the past or today
-- The send status is still "draft"
-- The application status is "pending" or "interviewing" (excluding rejected or withdrawn applications)
+## Job Application Observer and Side Effects
 
-The default sorting order prioritizes applications by next action date (ascending), ensuring that time-sensitive applications appear at the top of the list. Users can also sort by other columns like company name or last activity date. The ApplicationsNeedingAction widget on the dashboard displays up to 10 applications that need attention, sorted by next action date.
+The `JobApplicationObserver` class implements event-driven side effects that are triggered by changes to job application records. When an application is submitted (status changes to "submitted"), the observer automatically generates a PDF snapshot of the current CV using the `PdfSnapshotService`. This ensures a permanent record of the application materials as they existed at the time of submission. The observer also handles other side effects such as updating user metrics, triggering AI reviews, and sending notifications. This pattern decouples core application logic from secondary actions, maintaining clean separation of concerns.
 
-## Common Use Cases
+```mermaid
+sequenceDiagram
+participant UI as "User Interface"
+participant Model as "JobApplication Model"
+participant Observer as "JobApplicationObserver"
+participant Service as "PdfSnapshotService"
+participant DB as "Database"
+UI->>Model : Update status to "submitted"
+Model->>DB : Save changes
+DB-->>Model : Save confirmation
+Model->>Observer : saved() event
+Observer->>Observer : Check status change
+Observer->>Service : generateSnapshot(jobApplication)
+Service->>Service : Render CV to PDF
+Service->>DB : Store PDFSnapshot record
+DB-->>Service : Snapshot ID
+Service-->>Observer : Success
+Observer-->>Model : Complete
+```
 
-The job application tracking system supports several common use cases that reflect real-world job search activities.
-
-### Bulk Status Updates
-Users can perform bulk actions on multiple applications, such as deleting selected applications. The system implements this through Filament's bulk action group functionality, allowing users to select multiple records and apply actions efficiently.
-
-### Deadline Reminders
-The system helps users manage deadlines through the next_action_date field and visual indicators. Applications with past-due action dates are highlighted in red in the table view, and the "Applications Needing Action" widget on the dashboard prominently displays these time-sensitive items.
-
-### Keyword Coverage Analysis
-When users enter a job description and select a CV, the system calculates keyword coverage to help optimize their application. This feature uses the KeywordCoverageService to analyze the job description against the CV content, providing feedback on coverage percentage and missing keywords. The service tokenizes both texts, removes stopwords, and calculates the percentage of job description keywords present in the CV. This helps users tailor their CVs to specific job requirements by identifying missing keywords.
+**Diagram sources**
+- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php)
+- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php)
 
 **Section sources**
-- [KeywordCoverageService.php](file://app/Services/KeywordCoverageService.php#L4-L75)
+- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php)
+- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php)
 
-### Application Statistics and Visualization
-The system includes dashboard widgets that provide statistical overviews of the user's job search progress. The ApplicationStatsOverview widget displays key metrics like total applications, sent applications, and applications by status. The ApplicationStatusChart widget presents a visual breakdown of applications by status, helping users understand their pipeline distribution.
+## Needs Attention Filtering System
 
-These features work together to create a comprehensive job application tracking system that supports users throughout the job search process, from initial application to final outcome.
+The system includes a "Needs Attention" filtering mechanism that helps users prioritize follow-up actions. Applications are flagged as needing attention based on configurable criteria such as: no response received within a threshold period, interview scheduled without preparation completed, offer received without decision made, or application submitted without PDF snapshot confirmation. This filtering is implemented through query scopes on the `JobApplication` model and displayed in dedicated widgets like `ApplicationsNeedingAction`. The system proactively surfaces time-sensitive items, helping users maintain momentum in their job search.
+
+**Section sources**
+- [JobApplication.php](file://app/Models/JobApplication.php)
+- [ApplicationsNeedingAction.php](file://app/Filament/Widgets/ApplicationsNeedingAction.php)
+
+## CV Integration and AI Review Process
+
+Job applications are tightly integrated with CV management, allowing users to select from existing CV versions when applying to positions. When an application is submitted, the system can automatically initiate an AI review process that analyzes the CV against the job description. The AI review evaluates keyword coverage, skill alignment, and content effectiveness, storing results in the `ai_review_results` and `ai_review_status` fields of the `JobApplication` model. Users can view detailed feedback through the Filament interface, including improvement suggestions and gap analysis, enabling iterative refinement of application materials.
+
+**Section sources**
+- [JobApplication.php](file://app/Models/JobApplication.php)
+- [Cv.php](file://app/Models/Cv.php)
+- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php)
+
+## Application Withdrawal and Status Transitions
+
+Users can withdraw job applications at any stage, which triggers a status transition to "withdrawn" and records the withdrawal timestamp in the `withdrawn_at` field. This soft withdrawal approach preserves the application history while clearly indicating the user's decision to discontinue pursuit. The withdrawal process is reversible within a configurable grace period, allowing users to reconsider their decision. Status transitions are validated to prevent invalid state changes (e.g., withdrawing an already accepted offer), and all transitions are logged as application events for audit purposes.
+
+**Section sources**
+- [JobApplication.php](file://app/Models/JobApplication.php)
+- [add_withdrawn_at_to_job_applications_table.php](file://database/migrations/2025_10_04_090625_add_withdrawn_at_to_job_applications_table.php)
+- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php)

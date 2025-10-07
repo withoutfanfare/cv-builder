@@ -3,235 +3,270 @@
 <cite>
 **Referenced Files in This Document**   
 - [Cv.php](file://app/Models/Cv.php)
-- [CVVersion.php](file://app/Models/CVVersion.php)
 - [JobApplication.php](file://app/Models/JobApplication.php)
 - [PDFSnapshot.php](file://app/Models/PDFSnapshot.php)
+- [SectionFocusProfile.php](file://app/Models/SectionFocusProfile.php)
+- [CVVersion.php](file://app/Models/CVVersion.php)
+- [CvReviewService.php](file://app/Services/CvReviewService.php)
+- [MetricsCalculationService.php](file://app/Services/MetricsCalculationService.php)
+- [CoverLetterService.php](file://app/Services/CoverLetterService.php)
 - [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php)
-- [KeywordCoverageService.php](file://app/Services/KeywordCoverageService.php)
-- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php)
-- [add_soft_deletes_to_cvs.php](file://database/migrations/2025_10_04_002505_add_soft_deletes_to_cvs.php)
 - [create_cv_versions_table.php](file://database/migrations/2025_10_04_002612_create_cv_versions_table.php)
-- [create_pdf_snapshots_table.php](file://database/migrations/2025_10_04_002642_create_pdf_snapshots_table.php)
-- [extend_job_applications_table.php](file://database/migrations/2025_10_04_002540_extend_job_applications_table.php)
 </cite>
 
 ## Table of Contents
-1. [Key Entities](#key-entities)
-2. [Model Relationships](#model-relationships)
-3. [CV Lifecycle and Versioning](#cv-lifecycle-and-versioning)
-4. [Service Classes](#service-classes)
-5. [Soft Deletes and Data Integrity](#soft-deletes-and-data-integrity)
-6. [Model Observers](#model-observers)
+1. [Introduction](#introduction)
+2. [Key Entities](#key-entities)
+3. [CV Versioning System](#cv-versioning-system)
+4. [Non-Destructive Tailoring with Section Focus Profiles](#non-destructive-tailoring-with-section-focus-profiles)
+5. [AI-Powered CV Review Process](#ai-powered-cv-review-process)
+6. [Metrics Calculation and Performance Tracking](#metrics-calculation-and-performance-tracking)
+7. [Cover Letter Generation](#cover-letter-generation)
+8. [Practical Integration Example](#practical-integration-example)
+
+## Introduction
+The cv-builder application is designed to streamline the job application process through structured data management, intelligent analysis, and performance tracking. This document explains the core concepts that form the foundation of the system, focusing on key entities, versioning mechanisms, AI-powered review processes, and performance metrics. The system enables users to create multiple CVs, track job applications, generate tailored documents, and optimize their job search through data-driven insights. By understanding these fundamental concepts, both beginners and developers can effectively utilize and extend the application's capabilities.
 
 ## Key Entities
+The cv-builder application revolves around several key entities that represent the core components of the job application process. These entities work together to create a comprehensive system for managing CVs, job applications, and related artifacts.
 
-The CV Builder application is built around four core entities that represent the fundamental data structures used to manage job applications and professional profiles.
-
-**CV** represents a complete curriculum vitae document containing professional information organized into sections such as experience, education, skills, and summary. Each CV has a title and contains multiple sections that can be reordered and customized. The CV serves as the primary container for all professional information that can be tailored for specific job applications.
-
-**CVVersion** represents a historical snapshot of a CV at a specific point in time. It captures the complete state of a CV as JSON data along with metadata including the creation timestamp and reason for versioning. This entity enables users to track the evolution of their CV over time and maintain historical records of previous versions.
-
-**JobApplication** represents a tracked job application with comprehensive metadata including company information, application status, deadlines, follow-up dates, and the full job description. It establishes the connection between a CV and a specific job opportunity, allowing users to manage their application pipeline with detailed tracking capabilities.
-
-**PDFSnapshot** represents a generated PDF version of a CV that was submitted for a specific job application. It stores the file path, SHA-256 hash for integrity verification, and creation timestamp, providing an immutable record of exactly what was sent to an employer.
+### CV
+The CV entity represents a curriculum vitae or resume within the system. It serves as the primary container for all professional information, including work experience, education, skills, and other relevant sections. The CV model provides methods for cloning, versioning, and retrieving content in formats suitable for analysis. It also supports relationships with job applications, PDF snapshots, and section focus profiles, enabling tailored presentations for different roles.
 
 **Section sources**
-- [Cv.php](file://app/Models/Cv.php#L7-L221)
-- [CVVersion.php](file://app/Models/CVVersion.php#L7-L30)
-- [JobApplication.php](file://app/Models/JobApplication.php#L7-L66)
-- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php#L7-L44)
+- [Cv.php](file://app/Models/Cv.php#L10-L354)
 
-## Model Relationships
-
-The core models in the CV Builder application are interconnected through well-defined Eloquent relationships that establish the data structure and enable efficient querying.
-
-```mermaid
-classDiagram
-class Cv {
-+string title
-+softDeletes()
-+headerInfo() HasOne
-+sections() HasMany
-+summary() HasOne
-+skillCategories() HasManyThrough
-+experiences() HasManyThrough
-+projects() HasManyThrough
-+education() HasManyThrough
-+reference() HasOne
-+jobApplications() HasMany
-+customSections() HasManyThrough
-+versions() HasMany
-+pdfSnapshots() HasMany
-+cloneCv(string) Cv
-}
-class CVVersion {
-+int cv_id
-+array snapshot_json
-+string reason
-+datetime created_at
-+cv() BelongsTo
-}
-class JobApplication {
-+int cv_id
-+string company_name
-+string job_title
-+string source
-+date application_deadline
-+date next_action_date
-+text job_description
-+datetime last_activity_at
-+cv() BelongsTo
-+pdfSnapshot() HasOne
-+scopeNeedsAttention(Builder) Builder
-}
-class PDFSnapshot {
-+int job_application_id
-+int cv_id
-+int cv_version_id
-+string file_path
-+string hash
-+datetime created_at
-+jobApplication() BelongsTo
-+cv() BelongsTo
-+cvVersion() BelongsTo
-}
-Cv "1" --> "*" CVVersion : has many
-Cv "1" --> "*" JobApplication : has many
-Cv "1" --> "*" PDFSnapshot : has many
-JobApplication "1" --> "1" PDFSnapshot : has one
-JobApplication "1" --> "1" Cv : belongs to
-CVVersion "1" --> "1" Cv : belongs to
-PDFSnapshot "1" --> "1" JobApplication : belongs to
-PDFSnapshot "1" --> "1" Cv : belongs to
-PDFSnapshot "1" --> "1" CVVersion : belongs to
-```
-
-**Diagram sources**
-- [Cv.php](file://app/Models/Cv.php#L7-L221)
-- [CVVersion.php](file://app/Models/CVVersion.php#L7-L30)
-- [JobApplication.php](file://app/Models/JobApplication.php#L7-L66)
-- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php#L7-L44)
+### JobApplication
+The JobApplication entity tracks the lifecycle of a job application from creation to final outcome. It contains fields for company information, job details, application status, and next actions. The model includes a scope method for identifying applications that need attention, helping users prioritize their follow-up activities. It also stores AI review data and maintains relationships with CVs, PDF snapshots, and cover letters.
 
 **Section sources**
-- [Cv.php](file://app/Models/Cv.php#L7-L221)
-- [CVVersion.php](file://app/Models/CVVersion.php#L7-L30)
-- [JobApplication.php](file://app/Models/JobApplication.php#L7-L66)
-- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php#L7-L44)
+- [JobApplication.php](file://app/Models/JobApplication.php#L10-L122)
 
-## CV Lifecycle and Versioning
-
-The CV lifecycle in the application follows a comprehensive flow from creation through modification, cloning, and versioning. When a user creates a new CV, it becomes a container for professional information that can be continuously refined.
-
-The `cloneCv` method in the Cv model implements a deep cloning mechanism that creates a complete copy of a CV including all sections and their content. This process occurs within a database transaction to ensure data integrity. Before creating the clone, the system automatically creates a CVVersion record that captures the current state of the original CV as a JSON snapshot. This versioning approach allows users to maintain historical records of their CV at different points in time, which is particularly valuable when experimenting with different formats or content for various job applications.
-
-```mermaid
-sequenceDiagram
-participant User
-participant Cv as Cv Model
-participant CVVersion as CVVersion Model
-participant DB as Database
-User->>Cv : cloneCv("manual clone")
-activate Cv
-Cv->>CVVersion : create(snapshot_json, reason, created_at)
-activate CVVersion
-CVVersion->>DB : Insert version record
-deactivate CVVersion
-Cv->>Cv : replicate() new CV
-Cv->>Cv : replicate() header info
-Cv->>Cv : replicate() all sections
-loop For each section type
-Cv->>Cv : Deep copy content
-end
-Cv->>DB : Save cloned CV and related data
-Cv-->>User : Return cloned CV
-deactivate Cv
-```
-
-**Diagram sources**
-- [Cv.php](file://app/Models/Cv.php#L150-L221)
-- [CVVersion.php](file://app/Models/CVVersion.php#L7-L30)
-
-**Section sources**
-- [Cv.php](file://app/Models/Cv.php#L150-L221)
-- [CVVersion.php](file://app/Models/CVVersion.php#L7-L30)
-
-## Service Classes
-
-The application utilizes specialized service classes to encapsulate business logic and complex operations related to CV management and analysis.
-
-**PdfSnapshotService** handles the generation and storage of PDF versions of CVs for job applications. The service generates a PDF using the Spatie Laravel-PDF package, calculates a SHA-256 hash of the content for integrity verification, stores the file on the local filesystem, and creates a corresponding PDFSnapshot record in the database. This ensures that each submitted application has an immutable record of exactly what was sent to the employer.
-
-**KeywordCoverageService** analyzes the alignment between a job description and CV content by tokenizing both texts, removing stopwords, and comparing keyword coverage. The service calculates a percentage score representing how well the CV content matches the keywords in the job description and identifies the top 20 missing keywords that could improve alignment. This helps users tailor their CVs to specific job requirements.
+### PDFSnapshot
+The PDFSnapshot entity captures a permanent record of a CV at the time of application submission. It stores the file path, cryptographic hash, and metadata about the generated PDF. This ensures that the exact version of the CV sent to an employer can be retrieved and verified at any time. The snapshot is created automatically when an application is marked as sent, providing a verifiable audit trail.
 
 ```mermaid
 classDiagram
 class PdfSnapshotService {
-+create(JobApplication) PDFSnapshot
++create(JobApplication) : PDFSnapshot
 }
-class KeywordCoverageService {
--array STOPWORDS
-+tokenize(string) array
-+calculateCoverage(string, string) array
+class JobApplication {
++cv : Cv
++send_status : string
++pdfSnapshot : PDFSnapshot
 }
-PdfSnapshotService --> JobApplication : uses
-PdfSnapshotService --> PDFSnapshot : creates
-KeywordCoverageService --> JobApplication : analyzes
-KeywordCoverageService --> Cv : analyzes
+class PDFSnapshot {
++job_application_id : int
++cv_id : int
++file_path : string
++hash : string
++created_at : datetime
+}
+class Cv {
++load(relationships) : Cv
+}
+PdfSnapshotService --> JobApplication : "uses"
+PdfSnapshotService --> PDFSnapshot : "creates"
+PdfSnapshotService --> Cv : "loads"
 ```
 
 **Diagram sources**
-- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php#L9-L64)
-- [KeywordCoverageService.php](file://app/Services/KeywordCoverageService.php#L4-L56)
+- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php)
+- [JobApplication.php](file://app/Models/JobApplication.php)
+- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php)
+- [Cv.php](file://app/Models/Cv.php)
 
 **Section sources**
-- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php#L9-L64)
-- [KeywordCoverageService.php](file://app/Services/KeywordCoverageService.php#L4-L56)
+- [PDFSnapshot.php](file://app/Models/PDFSnapshot.php#L10-L44)
 
-## Soft Deletes and Data Integrity
-
-The application implements soft deletes on CVs to preserve data integrity and maintain historical records. The `add_soft_deletes_to_cvs.php` migration adds a `deleted_at` timestamp column to the cvs table and creates an index for efficient querying. When a CV is deleted, the `SoftDeletes` trait in the Cv model sets the `deleted_at` timestamp instead of removing the record from the database.
-
-This approach ensures that all related data, including job applications, PDF snapshots, and version history, remains intact even after a CV is "deleted" from the user interface. Users can restore soft-deleted CVs if needed, and the system maintains a complete audit trail of all CV-related activities. This is particularly important for preserving the historical context of job applications, as deleting a CV would otherwise break the connection between applications and the CV versions that were submitted.
+### SectionFocusProfile
+The SectionFocusProfile entity enables non-destructive tailoring of CVs for specific job applications. It defines which sections to include and their display order without modifying the original CV content. This allows users to create multiple tailored versions of their CV for different roles while maintaining a single source of truth for their professional information.
 
 **Section sources**
-- [Cv.php](file://app/Models/Cv.php#L7-L221)
-- [add_soft_deletes_to_cvs.php](file://database/migrations/2025_10_04_002505_add_soft_deletes_to_cvs.php#L7-L30)
+- [SectionFocusProfile.php](file://app/Models/SectionFocusProfile.php#L10-L29)
 
-## Model Observers
+## CV Versioning System
+The CV versioning system provides a mechanism for tracking changes to CVs over time and creating snapshots before significant modifications. This ensures that previous versions can be recovered and provides a historical record of CV evolution.
 
-The application uses Eloquent model observers to automatically trigger actions in response to model events, implementing event-driven behavior without cluttering the model classes.
+### Version Creation Process
+The versioning system creates snapshots through the `cloneCv()` method in the Cv model. When a user clones a CV, the system automatically creates a version record containing a JSON representation of the current CV state. This snapshot includes all sections, content, and relationships, providing a complete backup before any modifications are made.
 
-**JobApplicationObserver** listens for events on the JobApplication model and performs automated actions. The `updating` method automatically updates the `last_activity_at` timestamp whenever a job application is modified, providing an accurate record of the most recent activity. The `updated` method checks if the `send_status` has changed to 'sent' and, if so, triggers the creation of a PDF snapshot through the PdfSnapshotService. This ensures that an immutable record is automatically created when a CV is officially submitted for a job application.
+```mermaid
+flowchart TD
+A[Clone CV] --> B[Create CVVersion]
+B --> C[Store snapshot_json]
+C --> D[Replicate CV record]
+D --> E[Copy all sections]
+E --> F[Copy section content]
+F --> G[Return cloned CV]
+```
+
+**Diagram sources**
+- [Cv.php](file://app/Models/Cv.php#L287-L354)
+- [create_cv_versions_table.php](file://database/migrations/2025_10_04_002612_create_cv_versions_table.php#L1-L32)
+
+**Section sources**
+- [CVVersion.php](file://app/Models/CVVersion.php#L10-L39)
+
+### Version Data Structure
+The CVVersion model stores a complete snapshot of the CV in the `snapshot_json` field, preserving the state at the time of cloning. The model includes a reason field to document why the version was created and a created_at timestamp for chronological tracking. The relationship with the parent CV allows for easy retrieval of version history.
+
+## Non-Destructive Tailoring with Section Focus Profiles
+Section Focus Profiles enable users to create tailored CV presentations without modifying the original content. This approach allows for role-specific optimization while maintaining data integrity.
+
+### Profile Configuration
+A SectionFocusProfile contains two key arrays: `included_section_ids` and `section_order`. The first determines which sections appear in the tailored CV, while the second controls their display sequence. This configuration is applied at render time, leaving the original CV data unchanged.
+
+### Application Process
+When generating a tailored CV, the system retrieves the appropriate profile and applies its configuration to the base CV. The `getSectionsWithProfile()` method filters sections based on the included IDs and reorders them according to the specified sequence. This dynamic assembly ensures that each job application can have a uniquely optimized presentation.
+
+**Section sources**
+- [SectionFocusProfile.php](file://app/Models/SectionFocusProfile.php#L10-L29)
+- [Cv.php](file://app/Models/Cv.php#L255-L285)
+
+## AI-Powered CV Review Process
+The AI-powered review process analyzes CVs against specific job descriptions to provide actionable optimization suggestions. This system leverages OpenAI to deliver insights that help users improve their application materials.
+
+### Review Workflow
+The CvReviewService orchestrates the review process through several key methods:
+- `analyzeForJob()`: Main entry point that validates inputs and coordinates the analysis
+- `extractJobRequirements()`: Uses OpenAI to parse job descriptions and identify key requirements
+- `buildAnalysisPrompt()`: Constructs the prompt with system instructions and context
+- `calculateMatchScore()`: Computes an overall alignment score based on skills, experience, and keywords
 
 ```mermaid
 sequenceDiagram
-participant User
-participant JobApplication as JobApplication Model
-participant Observer as JobApplicationObserver
-participant Service as PdfSnapshotService
-User->>JobApplication : Update send_status to 'sent'
-JobApplication->>Observer : updated() event
-activate Observer
-Observer->>JobApplication : wasChanged('send_status')?
-JobApplication-->>Observer : Yes
-Observer->>JobApplication : send_status === 'sent'?
-JobApplication-->>Observer : Yes
-Observer->>JobApplication : pdfSnapshot exists?
-JobApplication-->>Observer : No
-Observer->>Service : create(jobApplication)
-activate Service
-Service->>Service : Generate PDF
-Service->>Service : Calculate hash
-Service->>Service : Store file
-Service->>DB : Create PDFSnapshot record
-deactivate Service
-Observer-->>JobApplication : Complete
-deactivate Observer
+participant User as "User"
+participant Service as "CvReviewService"
+participant OpenAI as "OpenAI API"
+User->>Service : Request CV review
+Service->>Service : Validate CV and job description
+Service->>Service : Extract job requirements
+Service->>Service : Prepare CV data
+Service->>Service : Build analysis prompt
+Service->>OpenAI : Send analysis request
+OpenAI-->>Service : Return JSON response
+Service->>Service : Validate response structure
+Service-->>User : Return review results
 ```
 
 **Diagram sources**
-- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php#L7-L41)
-- [PdfSnapshotService.php](file://app/Services/PdfSnapshotService.php#L9-L64)
+- [CvReviewService.php](file://app/Services/CvReviewService.php#L10-L225)
 
 **Section sources**
-- [JobApplicationObserver.php](file://app/Observers/JobApplicationObserver.php#L7-L41)
+- [CvReviewService.php](file://app/Services/CvReviewService.php#L10-L225)
+- [JobApplication.php](file://app/Models/JobApplication.php#L100-L115)
+
+### Review Outputs
+The review process generates several types of actionable insights:
+- **Match Score**: Quantified alignment (0-100) with job requirements
+- **Skill Gaps**: Missing or underrepresented competencies from the job description
+- **Section Recommendations**: Suggested reordering of CV sections based on job focus
+- **Bullet Improvements**: Specific suggestions for enhancing achievement statements
+- **Language Suggestions**: Text replacements to improve alignment with job terminology
+- **Action Checklist**: Prioritized tasks to improve the CV before submission
+
+## Metrics Calculation and Performance Tracking
+The metrics system provides quantitative insights into job search performance, helping users track their progress and identify areas for improvement.
+
+### Metrics Calculation Service
+The MetricsCalculationService computes five key performance indicators:
+- Applications per week
+- Response rate
+- Interview conversion rate
+- Offer rate
+- Median days to first response
+
+```mermaid
+flowchart TD
+Start([MetricsCalculationService]) --> RefreshAll["refreshAllMetrics(timePeriod)"]
+RefreshAll --> CalcApplicationsPerWeek["calculateApplicationsPerWeek()"]
+RefreshAll --> CalcResponseRate["calculateResponseRate()"]
+RefreshAll --> CalcInterviewConversion["calculateInterviewConversionRate()"]
+RefreshAll --> CalcOfferRate["calculateOfferRate()"]
+RefreshAll --> CalcMedianResponse["calculateMedianDaysToFirstResponse()"]
+CalcApplicationsPerWeek --> ParsePeriod["parsePeriod(timePeriod)"]
+ParsePeriod --> QueryApplications["JobApplication::whereBetween('created_at')"]
+QueryApplications --> CalculateWeeklyAvg["Calculate: total / (days/7)"]
+CalculateWeeklyAvg --> StoreMetric["storeMetric('applications_per_week', value)"]
+CalcResponseRate --> QueryActiveApps["JobApplication::whereNull('withdrawn_at')"]
+QueryActiveApps --> QueryRepliedApps["JobApplication::whereHas('events', reply_received)"]
+QueryRepliedApps --> CalculatePercentage["Calculate: (replied/active) * 100"]
+CalculatePercentage --> StoreMetric["storeMetric('response_rate', value)"]
+CalcInterviewConversion --> QueryActiveApps["JobApplication::whereNull('withdrawn_at')"]
+QueryActiveApps --> QueryInterviewedApps["JobApplication::whereHas('events', interview_scheduled)"]
+QueryInterviewedApps --> CalculatePercentage["Calculate: (interviewed/active) * 100"]
+CalculatePercentage --> StoreMetric["storeMetric('interview_conversion_rate', value)"]
+CalcOfferRate --> QueryActiveApps["JobApplication::whereNull('withdrawn_at')"]
+QueryActiveApps --> QueryOfferedApps["JobApplication::whereHas('events', offer_received)"]
+QueryOfferedApps --> CalculatePercentage["Calculate: (offered/active) * 100"]
+CalculatePercentage --> StoreMetric["storeMetric('offer_rate', value)"]
+CalcMedianResponse --> QueryRepliedApps["JobApplication::whereHas('events', reply_received)"]
+QueryRepliedApps --> CalculateResponseTime["Calculate: created_at to first reply diffInDays()"]
+CalculateResponseTime --> SortTimes["Sort response times"]
+SortTimes --> CalculateMedian["Calculate median value"]
+CalculateMedian --> StoreMetric["storeMetric('median_days_to_first_response', value)"]
+StoreMetric --> UpdateOrCreate["Metric::updateOrCreate()"]
+```
+
+**Diagram sources**
+- [MetricsCalculationService.php](file://app/Services/MetricsCalculationService.php#L7-L169)
+- [MetricsCalculationTest.php](file://tests/Feature/MetricsCalculationTest.php#L10-L204)
+
+**Section sources**
+- [MetricsCalculationService.php](file://app/Services/MetricsCalculationService.php#L7-L169)
+
+### Calculation Logic
+Each metric follows a consistent pattern:
+1. Parse the time period parameter (e.g., '30d' for 30 days)
+2. Query relevant job application data within the time period
+3. Apply business rules (e.g., excluding withdrawn applications)
+4. Perform the specific calculation using appropriate formulas
+5. Store the result in the metrics table
+
+The system handles edge cases gracefully, returning 0 for metrics when no data is available rather than throwing exceptions.
+
+## Cover Letter Generation
+The cover letter system enables users to create personalized letters using templates with variable interpolation, ensuring consistency while allowing for role-specific customization.
+
+### Template Interpolation
+The CoverLetterService handles variable replacement in templates through the `interpolate()` method. Templates contain placeholders in the format `{{variable_name}}` which are replaced with actual values from the job application context.
+
+```mermaid
+flowchart TD
+A[Template with placeholders] --> B{For each variable}
+B --> C[Find placeholder in template]
+C --> D[Replace with actual value]
+D --> E{More variables?}
+E --> |Yes| B
+E --> |No| F[Return interpolated text]
+```
+
+**Diagram sources**
+- [CoverLetterService.php](file://app/Services/CoverLetterService.php#L10-L25)
+
+**Section sources**
+- [CoverLetterService.php](file://app/Services/CoverLetterService.php#L10-L25)
+
+### Variable Context
+Common variables used in templates include:
+- `company_name`: Target company name
+- `role_title`: Job title being applied for
+- `value_prop`: Key value proposition or relevant experience
+- `recent_win`: Recent achievement relevant to the role
+
+The interpolation process preserves placeholders that don't have corresponding values, allowing users to identify missing information.
+
+## Practical Integration Example
+The following example demonstrates how these concepts work together in a typical user workflow:
+
+1. A user creates a base CV with their complete professional history
+2. When applying for a frontend developer role, they create a SectionFocusProfile that prioritizes projects and skills sections
+3. They add the job description to the JobApplication record
+4. Before submission, they request an AI review which analyzes their CV against the job requirements
+5. The CvReviewService returns suggestions for improving alignment, including reordering sections and enhancing bullet points
+6. The user implements the recommendations and generates a PDF snapshot when marking the application as sent
+7. The PdfSnapshotService creates a permanent record of the submitted CV
+8. Over time, the MetricsCalculationService tracks the application's performance, contributing to overall job search metrics
+
+This integrated approach ensures that each application is optimized, documented, and contributes to continuous improvement through data-driven insights.
