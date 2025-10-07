@@ -21,8 +21,8 @@
         }
         body {
             font-family: 'Crimson Text', Georgia, 'Times New Roman', serif;
-            font-size: 10pt;
-            line-height: 1.6;
+            font-size: 9.5pt;
+            line-height: 1.55;
             font-weight: 400;
             color: #1a1a1a;
         }
@@ -71,13 +71,13 @@
                 @if($cv->headerInfo->linkedin_url || $cv->headerInfo->github_url || $cv->headerInfo->website_url)
                     <div class="contact-info flex justify-center flex-wrap gap-x-4 mt-1">
                         @if($cv->headerInfo->linkedin_url)
-                            <span>LinkedIn: {{ basename($cv->headerInfo->linkedin_url) }}</span>
+                            <a href="{{ $cv->headerInfo->linkedin_url }}" class="text-black hover:underline">LinkedIn: {{ basename($cv->headerInfo->linkedin_url) }}</a>
                         @endif
                         @if($cv->headerInfo->github_url)
-                            <span>GitHub: {{ basename($cv->headerInfo->github_url) }}</span>
+                            <a href="{{ $cv->headerInfo->github_url }}" class="text-black hover:underline">GitHub: {{ basename($cv->headerInfo->github_url) }}</a>
                         @endif
                         @if($cv->headerInfo->website_url)
-                            <span>{{ parse_url($cv->headerInfo->website_url, PHP_URL_HOST) }}</span>
+                            <a href="{{ $cv->headerInfo->website_url }}" class="text-black hover:underline">{{ parse_url($cv->headerInfo->website_url, PHP_URL_HOST) }}</a>
                         @endif
                     </div>
                 @endif
@@ -92,7 +92,7 @@
                     <section class="mb-6">
                         <h3 class="text-sm font-semibold uppercase tracking-wide mb-2">Professional Summary</h3>
                         <div class="section-divider"></div>
-                        <p class="text-justify leading-relaxed whitespace-pre-line">{{ $section->summary->content }}</p>
+                        <p class="text-justify leading-relaxed whitespace-pre-line" style="font-size: 9pt;">{{ $section->summary->content }}</p>
                     </section>
                 @endif
 
@@ -101,7 +101,7 @@
                     <section class="mb-6">
                         <h3 class="text-sm font-semibold uppercase tracking-wide mb-2">{{ $section->title }}</h3>
                         <div class="section-divider"></div>
-                        <div class="leading-relaxed space-y-2">
+                        <div class="leading-relaxed space-y-2" style="font-size: 9pt;">
                             @foreach(explode("\n\n", $section->customSection->content) as $paragraph)
                                 @if(preg_match('/^\*\*(.*?)\*\*\s*-\s*(.*)$/', trim($paragraph), $matches))
                                     <div>
@@ -143,7 +143,19 @@
                                     <div class="flex justify-between items-baseline mb-1">
                                         <div class="flex-1">
                                             <h4 class="font-semibold text-base">{{ $experience->job_title }}</h4>
-                                            <div class="italic">{{ $experience->company_name }}@if($experience->location), {{ $experience->location }}@endif</div>
+                                            <div class="italic">
+                                                @if($experience->company_url)
+                                                    <a href="{{ $experience->company_url }}" class="text-black hover:underline">{{ $experience->company_name }}</a>
+                                                @else
+                                                    {{ $experience->company_name }}
+                                                @endif
+                                                @if($experience->location), {{ $experience->location }}@endif
+                                            </div>
+                                            @if($experience->company_url)
+                                                <a href="{{ $experience->company_url }}" class="text-xs text-gray-600 hover:text-black">
+                                                    {{ preg_replace('#^https?://(www\.)?#', '', rtrim($experience->company_url, '/')) }}
+                                                </a>
+                                            @endif
                                         </div>
                                         <span class="text-sm font-semibold whitespace-nowrap ml-4">
                                             {{ $experience->start_date->format('M Y') }} –
@@ -154,7 +166,7 @@
                                             @endif
                                         </span>
                                     </div>
-                                    <ul class="list-disc list-outside ml-5 space-y-1 leading-relaxed mt-2">
+                                    <ul class="list-disc list-outside ml-5 space-y-1 leading-relaxed mt-2" style="font-size: 9pt;">
                                         @foreach($experience->highlights as $highlight)
                                             <li>{{ $highlight }}</li>
                                         @endforeach
@@ -173,13 +185,21 @@
                         <div class="space-y-3">
                             @foreach($section->projects->sortBy('display_order') as $project)
                                 <div>
-                                    <h4 class="font-semibold">{{ $project->project_name }}</h4>
-                                    <p class="leading-relaxed mt-1">{{ $project->description }}</p>
+                                    <h4 class="font-semibold">
+                                        @if($project->project_url)
+                                            <a href="{{ $project->project_url }}" class="text-black hover:underline">{{ $project->project_name }}</a>
+                                        @else
+                                            {{ $project->project_name }}
+                                        @endif
+                                    </h4>
+                                    @if($project->project_url)
+                                        <a href="{{ $project->project_url }}" class="text-xs text-gray-600 hover:text-black">
+                                            {{ preg_replace('#^https?://(www\.)?#', '', rtrim($project->project_url, '/')) }}
+                                        </a>
+                                    @endif
+                                    <p class="leading-relaxed mt-1" style="font-size: 9pt;">{{ $project->description }}</p>
                                     @if($project->technologies)
                                         <p class="text-sm italic mt-1">Technologies: {{ $project->technologies }}</p>
-                                    @endif
-                                    @if($project->project_url)
-                                        <p class="text-sm mt-1">{{ $project->project_url }}</p>
                                     @endif
                                 </div>
                             @endforeach

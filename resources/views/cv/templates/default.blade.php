@@ -32,8 +32,8 @@
         }
         body {
             font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
-            font-size: 9pt;
-            line-height: 1.5;
+            font-size: 8.5pt;
+            line-height: 1.45;
             font-weight: 300;
         }
         h1, h2, h3, h4 {
@@ -138,7 +138,7 @@
                 @if($section->section_type === 'summary' && $section->summary)
                     <section class="mb-6">
                         <h3 class="section-header text-sm font-bold text-gray-900 uppercase tracking-wide">Professional Summary</h3>
-                        <p class="text-gray-700 leading-relaxed text-justify whitespace-pre-line">{{ $section->summary->content }}</p>
+                        <p class="text-gray-700 leading-relaxed text-justify whitespace-pre-line" style="font-size: 8pt;">{{ $section->summary->content }}</p>
                     </section>
                 @endif
 
@@ -146,7 +146,7 @@
                 @if($section->section_type === 'custom' && $section->customSection)
                     <section class="mb-6">
                         <h3 class="section-header text-sm font-bold text-gray-900 uppercase tracking-wide">{{ $section->title }}</h3>
-                        <div class="text-gray-700 leading-relaxed space-y-1.5">
+                        <div class="text-gray-700 leading-relaxed space-y-1.5" style="font-size: 8pt;">
                             @foreach(explode("\n\n", $section->customSection->content) as $paragraph)
                                 @if(preg_match('/^\*\*(.*?)\*\*\s*-\s*(.*)$/', trim($paragraph), $matches))
                                     <div>
@@ -205,7 +205,7 @@
                                             @endif
                                         </span>
                                     </div>
-                                    <ul class="list-disc list-outside ml-4 text-gray-700 space-y-0.5 leading-relaxed mt-2">
+                                    <ul class="list-disc list-outside ml-4 text-gray-700 space-y-0.5 leading-relaxed mt-2" style="font-size: 8pt;">
                                         @foreach($experience->highlights as $highlight)
                                             <li>{{ $highlight }}</li>
                                         @endforeach
@@ -232,7 +232,7 @@
                                             <span>{{ preg_replace('#^https?://(www\.)?#', '', rtrim($project->project_url, '/')) }}</span>
                                         </a>
                                     @endif
-                                    <p class="text-gray-700 leading-relaxed mb-1">{{ $project->description }}</p>
+                                    <p class="text-gray-700 leading-relaxed mb-1" style="font-size: 8pt;">{{ $project->description }}</p>
                                     @if($project->technologies)
                                         <p class="text-xs text-accent font-medium">{{ $project->technologies }}</p>
                                     @endif

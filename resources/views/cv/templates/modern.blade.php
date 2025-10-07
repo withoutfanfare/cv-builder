@@ -33,7 +33,7 @@
         }
         body {
             font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            font-size: 9pt;
+            font-size: 8.5pt;
             line-height: 1.4;
             font-weight: 400;
         }
@@ -166,7 +166,7 @@
                 @if($section->section_type === 'summary' && $section->summary)
                     <section class="mb-8">
                         <h3 class="section-title">Professional Summary</h3>
-                        <p class="text-gray-700 leading-relaxed text-justify whitespace-pre-line">{{ $section->summary->content }}</p>
+                        <p class="text-gray-700 leading-relaxed text-justify whitespace-pre-line" style="font-size: 8pt;">{{ $section->summary->content }}</p>
                     </section>
                 @endif
 
@@ -185,7 +185,7 @@
                                 $items = preg_split('/\s*•\s*/', $content);
                                 $items = array_filter(array_map('trim', $items));
                             @endphp
-                            <ul class="list-disc list-outside ml-5 text-gray-700 space-y-1 leading-relaxed">
+                            <ul class="list-disc list-outside ml-5 text-gray-700 space-y-1 leading-relaxed" style="font-size: 8pt;">
                                 @foreach($items as $item)
                                     @if($item)
                                         <li>{{ $item }}</li>
@@ -193,7 +193,7 @@
                                 @endforeach
                             </ul>
                         @else
-                            <div class="text-gray-700 leading-relaxed space-y-2">
+                            <div class="text-gray-700 leading-relaxed space-y-2" style="font-size: 8pt;">
                                 @foreach(explode("\n\n", $section->customSection->content) as $paragraph)
                                     @if(preg_match('/^\*\*(.*?)\*\*\s*-\s*(.*)$/', trim($paragraph), $matches))
                                         <div>
@@ -226,6 +226,11 @@
                                                     {{ $experience->company_name }}
                                                 @endif
                                             </div>
+                                            @if($experience->company_url)
+                                                <a href="{{ $experience->company_url }}" class="text-[7pt] text-gray-500 hover:text-blue-600 transition-colors">
+                                                    {{ preg_replace('#^https?://(www\.)?#', '', rtrim($experience->company_url, '/')) }}
+                                                </a>
+                                            @endif
                                             @if($experience->location)
                                                 <div class="text-xs text-gray-500 mt-0.5">{{ $experience->location }}</div>
                                             @endif
@@ -239,7 +244,7 @@
                                             @endif
                                         </div>
                                     </div>
-                                    <ul class="list-disc list-outside ml-5 text-gray-700 space-y-1 leading-relaxed mt-2">
+                                    <ul class="list-disc list-outside ml-5 text-gray-700 space-y-1 leading-relaxed mt-2" style="font-size: 8pt;">
                                         @foreach($experience->highlights as $highlight)
                                             <li>{{ $highlight }}</li>
                                         @endforeach
@@ -264,7 +269,12 @@
                                             {{ $project->project_name }}
                                         @endif
                                     </h4>
-                                    <p class="text-gray-700 leading-relaxed mt-1">{{ $project->description }}</p>
+                                    @if($project->project_url)
+                                        <a href="{{ $project->project_url }}" class="text-[7pt] text-gray-500 hover:text-blue-600 transition-colors">
+                                            {{ preg_replace('#^https?://(www\.)?#', '', rtrim($project->project_url, '/')) }}
+                                        </a>
+                                    @endif
+                                    <p class="text-gray-700 leading-relaxed mt-1" style="font-size: 8pt;">{{ $project->description }}</p>
                                     @if($project->technologies)
                                         <div class="flex flex-wrap gap-1.5 mt-2">
                                             @foreach(array_map('trim', explode(',', $project->technologies)) as $tech)
