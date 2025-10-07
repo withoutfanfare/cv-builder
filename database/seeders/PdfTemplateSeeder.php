@@ -40,7 +40,10 @@ class PdfTemplateSeeder extends Seeder
         ];
 
         foreach ($templates as $template) {
-            PdfTemplate::create($template);
+            PdfTemplate::updateOrCreate(
+                ['slug' => $template['slug']],
+                $template
+            );
         }
     }
 }

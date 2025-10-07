@@ -30,6 +30,14 @@ class PdfTemplate extends Model
 
     public static function default(): self
     {
-        return static::where('is_default', true)->firstOrFail();
+        $default = static::where('is_default', true)->first();
+
+        if (! $default) {
+            throw new \RuntimeException(
+                'No default PDF template found. Please run: php artisan db:seed --class=PdfTemplateSeeder'
+            );
+        }
+
+        return $default;
     }
 }

@@ -196,8 +196,11 @@ class Cv extends Model
 
     /**
      * Get skills as array for CV review analysis
+     *
+     * Note: This method uses the loaded skillCategories relationship.
+     * When accessing multiple CVs, eager load with: Cv::with('skillCategories')->get()
      */
-    public function getSkillsAttribute(): array
+    public function getSkillsList(): array
     {
         return $this->skillCategories->flatMap(function ($category) {
             return collect($category->skills)->pluck('name')->toArray();
@@ -206,8 +209,11 @@ class Cv extends Model
 
     /**
      * Get experiences as array for CV review analysis
+     *
+     * Note: This method queries the experiences relationship.
+     * When accessing multiple CVs, eager load with: Cv::with('experiences')->get()
      */
-    public function getExperiencesAttribute(): array
+    public function getExperiencesList(): array
     {
         return $this->experiences()->get()->map(function ($exp) {
             return [
@@ -220,8 +226,11 @@ class Cv extends Model
 
     /**
      * Get education as array for CV review analysis
+     *
+     * Note: This method queries the education relationship.
+     * When accessing multiple CVs, eager load with: Cv::with('education')->get()
      */
-    public function getEducationAttribute(): array
+    public function getEducationList(): array
     {
         return $this->education()->get()->map(function ($edu) {
             return [
@@ -233,8 +242,11 @@ class Cv extends Model
 
     /**
      * Get highlights as array for CV review analysis
+     *
+     * Note: This method queries the experiences relationship.
+     * When accessing multiple CVs, eager load with: Cv::with('experiences')->get()
      */
-    public function getHighlightsAttribute(): array
+    public function getHighlightsList(): array
     {
         // Flatten all highlights from experiences and other sections
         $allHighlights = [];

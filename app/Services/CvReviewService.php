@@ -18,8 +18,8 @@ class CvReviewService
             throw new MissingJobDescriptionException('Job description is required for CV analysis');
         }
 
-        $hasExperiences = is_array($cv->experiences) && count($cv->experiences) > 0;
-        $hasSkills = is_array($cv->skills) && count($cv->skills) > 0;
+        $hasExperiences = is_array($cv->getExperiencesList()) && count($cv->getExperiencesList()) > 0;
+        $hasSkills = is_array($cv->getSkillsList()) && count($cv->getSkillsList()) > 0;
 
         if (! $hasExperiences && ! $hasSkills) {
             throw new IncompleteCvException('CV must have at least one experience or skill for analysis');
@@ -28,10 +28,10 @@ class CvReviewService
         $jobRequirements = $this->extractJobRequirements($jobApplication->job_description);
 
         $cvData = [
-            'skills' => $cv->skills ?? [],
-            'experiences' => $cv->experiences ?? [],
-            'education' => $cv->education ?? [],
-            'highlights' => $cv->highlights ?? [],
+            'skills' => $cv->getSkillsList(),
+            'experiences' => $cv->getExperiencesList(),
+            'education' => $cv->getEducationList(),
+            'highlights' => $cv->getHighlightsList(),
         ];
 
         $messages = $this->buildAnalysisPrompt($cvData, $jobRequirements, $jobApplication->job_description);

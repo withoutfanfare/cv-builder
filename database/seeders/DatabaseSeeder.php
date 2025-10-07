@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call([
+            PdfTemplateSeeder::class,
             BaseCVSeeder::class,
         ]);
     }
