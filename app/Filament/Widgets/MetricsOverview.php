@@ -5,32 +5,38 @@ namespace App\Filament\Widgets;
 use App\Models\Metric;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Facades\Cache;
 
 class MetricsOverview extends StatsOverviewWidget
 {
     protected static ?int $sort = 2;
 
+    // Poll for updates every 5 minutes instead of every page load
+    protected static ?string $pollingInterval = '5m';
+
     protected function getStats(): array
     {
-        $applicationsPerWeek = Metric::where('metric_type', 'applications_per_week')
-            ->latest('time_period_start')
-            ->first();
+        // Cache metrics for 5 minutes to reduce database queries
+        $metrics = Cache::remember('dashboard_metrics', 300, function () {
+            return Metric::select('metric_type', 'value', 'last_refreshed_at', 'time_period_start')
+                ->whereIn('metric_type', [
+                    'applications_per_week',
+                    'response_rate',
+                    'interview_conversion_rate',
+                    'offer_rate',
+                    'median_days_to_first_response',
+                ])
+                ->latest('time_period_start')
+                ->get()
+                ->groupBy('metric_type')
+                ->map(fn ($group) => $group->first());
+        });
 
-        $responseRate = Metric::where('metric_type', 'response_rate')
-            ->latest('time_period_start')
-            ->first();
-
-        $interviewConversionRate = Metric::where('metric_type', 'interview_conversion_rate')
-            ->latest('time_period_start')
-            ->first();
-
-        $offerRate = Metric::where('metric_type', 'offer_rate')
-            ->latest('time_period_start')
-            ->first();
-
-        $medianDaysToFirstResponse = Metric::where('metric_type', 'median_days_to_first_response')
-            ->latest('time_period_start')
-            ->first();
+        $applicationsPerWeek = $metrics->get('applications_per_week');
+        $responseRate = $metrics->get('response_rate');
+        $interviewConversionRate = $metrics->get('interview_conversion_rate');
+        $offerRate = $metrics->get('offer_rate');
+        $medianDaysToFirstResponse = $metrics->get('median_days_to_first_response');
 
         return [
             Stat::make('Applications per Week', $applicationsPerWeek?->value ?? 0)

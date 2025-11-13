@@ -19,6 +19,7 @@ class ApplicationsNeedingAction extends TableWidget
         return $table
             ->query(
                 JobApplication::query()
+                    ->with(['cv', 'events'])
                     ->needsAttention()
                     ->limit(10)
             )
