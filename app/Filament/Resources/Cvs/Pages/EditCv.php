@@ -3,10 +3,13 @@
 namespace App\Filament\Resources\Cvs\Pages;
 
 use App\Filament\Resources\Cvs\CvResource;
+use App\Filament\Resources\ExperienceSnippetResource;
 use App\Models\CvHeaderInfo;
 use App\Services\CvDiffService;
+use App\Services\SnippetGenerationService;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
+use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
@@ -95,6 +98,73 @@ class EditCv extends EditRecord
                     'versions' => $this->record->versions()->orderBy('created_at', 'desc')->get(),
                 ]))
                 ->visible(fn () => $this->record->versions()->count() > 0),
+
+            Action::make('generate_snippets')
+                ->label('Generate Snippets')
+                ->icon('heroicon-o-sparkles')
+                ->color('warning')
+                ->modalHeading('AI-Generate Experience Snippets')
+                ->modalDescription(function () {
+                    $highlightCount = 0;
+                    foreach ($this->record->experiences as $exp) {
+                        $highlightCount += count($exp->highlights ?? []);
+                    }
+
+                    $service = new SnippetGenerationService();
+                    $cost = $service->estimateCost($this->record);
+
+                    return "This will use AI to analyze {$highlightCount} achievement bullets from your experience and automatically create reusable snippets with categories, tags, and metadata. Estimated cost: $" . number_format($cost / 100, 2);
+                })
+                ->modalWidth('2xl')
+                ->form([
+                    Checkbox::make('auto_save')
+                        ->label('Automatically save snippets to library')
+                        ->helperText('Uncheck to preview before saving')
+                        ->default(true),
+                ])
+                ->action(function (array $data) {
+                    $service = new SnippetGenerationService();
+                    $result = $service->generateFromCv($this->record, $data['auto_save'] ?? true);
+
+                    if ($data['auto_save']) {
+                        Notification::make()
+                            ->title('Snippets Generated!')
+                            ->body("{$result['total_generated']} snippets created from your experience.")
+                            ->success()
+                            ->duration(5000)
+                            ->actions([
+                                \Filament\Notifications\Actions\Action::make('view_snippets')
+                                    ->label('View Snippet Library')
+                                    ->url(ExperienceSnippetResource::getUrl('index'))
+                                    ->button(),
+                            ])
+                            ->send();
+                    } else {
+                        // Store in session for preview
+                        session(['pending_snippets' => $result['snippets']]);
+
+                        Notification::make()
+                            ->title('Snippets Ready for Preview')
+                            ->body("{$result['total_generated']} snippets generated. Review and save them in the Snippet Library.")
+                            ->info()
+                            ->actions([
+                                \Filament\Notifications\Actions\Action::make('review')
+                                    ->label('Review Snippets')
+                                    ->url(ExperienceSnippetResource::getUrl('index'))
+                                    ->button(),
+                            ])
+                            ->send();
+                    }
+
+                    if (!empty($result['errors'])) {
+                        Notification::make()
+                            ->title('Some experiences had errors')
+                            ->body(count($result['errors']) . ' experiences could not be processed.')
+                            ->warning()
+                            ->send();
+                    }
+                })
+                ->visible(fn () => $this->record->experiences()->count() > 0),
 
             DeleteAction::make()
                 ->modalHeading('Archive CV')
