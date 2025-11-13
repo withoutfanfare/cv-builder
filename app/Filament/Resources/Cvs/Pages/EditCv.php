@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Cvs\Pages;
 
 use App\Filament\Resources\Cvs\CvResource;
 use App\Models\CvHeaderInfo;
+use App\Services\CvDiffService;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Forms\Components\Select;
@@ -82,6 +83,19 @@ class EditCv extends EditRecord
                     return redirect(CvResource::getUrl('edit', ['record' => $clonedCv]));
                 })
                 ->color('success'),
+
+            Action::make('version_history')
+                ->label('Version History')
+                ->icon('heroicon-o-clock')
+                ->color('info')
+                ->modalHeading('CV Version History')
+                ->modalWidth('7xl')
+                ->modalContent(fn () => view('filament.resources.cvs.pages.version-history', [
+                    'cv' => $this->record,
+                    'versions' => $this->record->versions()->orderBy('created_at', 'desc')->get(),
+                ]))
+                ->visible(fn () => $this->record->versions()->count() > 0),
+
             DeleteAction::make()
                 ->modalHeading('Archive CV')
                 ->modalDescription('This CV will be archived. Job applications and PDF snapshots will remain accessible.'),
