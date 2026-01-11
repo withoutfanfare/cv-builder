@@ -2,8 +2,11 @@
 
 namespace App\Filament\Resources\JobApplications\Pages;
 
+use App\Actions\ApplySuggestionAction;
+use App\Filament\Resources\Cvs\CvResource;
 use App\Filament\Resources\JobApplications\JobApplicationResource;
 use App\Jobs\ProcessCvReview;
+use App\Models\SectionFocusProfile;
 use App\Services\CvReviewService;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
@@ -71,6 +74,123 @@ class EditJobApplication extends EditRecord
                         ->send();
                 }),
 
+            Action::make('applyAllSuggestions')
+                ->label('Apply All Language Suggestions')
+                ->icon('heroicon-o-check-circle')
+                ->color('success')
+                ->visible(fn ($record) => $record->ai_review_completed_at && ! $record->isReviewStale() && ! empty($record->ai_review_data['language_suggestions']))
+                ->requiresConfirmation()
+                ->modalHeading('Apply All Language Suggestions')
+                ->modalDescription(function ($record) {
+                    $count = count($record->ai_review_data['language_suggestions'] ?? []);
+
+                    return "This will automatically apply all {$count} language improvements to your CV. You can review the changes in the CV editor afterwards.";
+                })
+                ->action(function ($record) {
+                    $applySuggestionAction = new ApplySuggestionAction;
+                    $applied = $applySuggestionAction->applyAllLanguageSuggestions($record->cv, $record->ai_review_data);
+
+                    $count = count($applied);
+
+                    Notification::make()
+                        ->title('Suggestions Applied')
+                        ->body("{$count} language improvements have been applied to your CV.")
+                        ->success()
+                        ->duration(5000)
+                        ->actions([
+                            \Filament\Notifications\Actions\Action::make('view_cv')
+                                ->label('View CV')
+                                ->url(CvResource::getUrl('edit', ['record' => $record->cv]))
+                                ->button(),
+                        ])
+                        ->send();
+
+                    // Redirect to CV edit page
+                    return redirect()->to(CvResource::getUrl('edit', ['record' => $record->cv]));
+                }),
+
+            Action::make('autoGenerateProfile')
+                ->label('Auto-Generate Section Profile')
+                ->icon('heroicon-o-squares-plus')
+                ->color('info')
+                ->visible(fn ($record) => $record->ai_review_completed_at && ! empty($record->ai_review_data['section_recommendations']))
+                ->requiresConfirmation()
+                ->modalHeading('Auto-Generate Section Focus Profile')
+                ->modalDescription('AI will automatically create a Section Focus Profile optimized for this job, reordering sections based on relevance.')
+                ->action(function ($record) {
+                    $cv = $record->cv;
+                    $sectionRecs = $record->ai_review_data['section_recommendations'] ?? [];
+
+                    // Determine section order based on AI recommendations
+                    $allSections = $cv->sections()->get();
+                    $includedSectionIds = [];
+                    $sectionOrder = [];
+
+                    // High priority sections come first
+                    foreach ($sectionRecs as $rec) {
+                        if (($rec['priority'] ?? 'medium') === 'high') {
+                            $sectionType = $rec['section'] ?? '';
+                            $section = $allSections->firstWhere('section_type', $sectionType);
+
+                            if ($section && ! in_array($section->id, $includedSectionIds)) {
+                                $includedSectionIds[] = $section->id;
+                                $sectionOrder[] = $section->id;
+                            }
+                        }
+                    }
+
+                    // Medium priority sections
+                    foreach ($sectionRecs as $rec) {
+                        if (($rec['priority'] ?? 'medium') === 'medium') {
+                            $sectionType = $rec['section'] ?? '';
+                            $section = $allSections->firstWhere('section_type', $sectionType);
+
+                            if ($section && ! in_array($section->id, $includedSectionIds)) {
+                                $includedSectionIds[] = $section->id;
+                                $sectionOrder[] = $section->id;
+                            }
+                        }
+                    }
+
+                    // Add remaining sections
+                    foreach ($allSections as $section) {
+                        if (! in_array($section->id, $includedSectionIds)) {
+                            $includedSectionIds[] = $section->id;
+                            $sectionOrder[] = $section->id;
+                        }
+                    }
+
+                    // Create the profile
+                    $profile = SectionFocusProfile::create([
+                        'cv_id' => $cv->id,
+                        'profile_name' => $record->company_name.' - '.$record->job_title.' (AI)',
+                        'included_section_ids' => $includedSectionIds,
+                        'section_order' => $sectionOrder,
+                    ]);
+
+                    Notification::make()
+                        ->title('Section Profile Created')
+                        ->body('AI-optimized section profile created successfully!')
+                        ->success()
+                        ->duration(5000)
+                        ->actions([
+                            \Filament\Notifications\Actions\Action::make('download_pdf')
+                                ->label('Download PDF')
+                                ->url(route('cv.pdf', ['cv' => $cv->id, 'profile' => $profile->id]))
+                                ->openUrlInNewTab()
+                                ->button(),
+                        ])
+                        ->send();
+                }),
+
+            Action::make('downloadTailoredPdf')
+                ->label('Download PDF')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->color('info')
+                ->visible(fn ($record) => $record->cv_id)
+                ->url(fn ($record) => route('cv.pdf', ['cv' => $record->cv_id]))
+                ->openUrlInNewTab(),
+
             DeleteAction::make(),
         ];
     }
@@ -93,6 +213,33 @@ class EditJobApplication extends EditRecord
                     ->collapsed(fn ($record) => ! $record->ai_review_completed_at)
                     ->visible(fn ($record) => $record->ai_review_completed_at || $record->ai_review_requested_at)
                     ->headerActions([
+                        InfolistAction::make('applyAllSuggestions')
+                            ->label('Apply All')
+                            ->icon('heroicon-o-check-circle')
+                            ->color('success')
+                            ->visible(fn ($record) => $record->ai_review_completed_at && ! $record->isReviewStale() && ! empty($record->ai_review_data['language_suggestions']))
+                            ->requiresConfirmation()
+                            ->modalHeading('Apply All Language Suggestions')
+                            ->modalDescription(function ($record) {
+                                $count = count($record->ai_review_data['language_suggestions'] ?? []);
+
+                                return "This will automatically apply all {$count} language improvements to your CV.";
+                            })
+                            ->action(function ($record) {
+                                $applySuggestionAction = new ApplySuggestionAction;
+                                $applied = $applySuggestionAction->applyAllLanguageSuggestions($record->cv, $record->ai_review_data);
+
+                                $count = count($applied);
+
+                                Notification::make()
+                                    ->title('Suggestions Applied')
+                                    ->body("{$count} language improvements have been applied to your CV.")
+                                    ->success()
+                                    ->send();
+
+                                return redirect()->to(CvResource::getUrl('edit', ['record' => $record->cv]));
+                            }),
+
                         InfolistAction::make('regenerate')
                             ->label('Regenerate')
                             ->icon('heroicon-o-arrow-path')
